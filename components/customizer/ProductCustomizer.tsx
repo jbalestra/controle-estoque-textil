@@ -266,7 +266,7 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
       if (product.base_mockup_url) {
         try {
           const baseImg = await loadImage(product.base_mockup_url);
-          const padding = 35;
+          const padding = 55;
           const maxW = width - padding * 2;
           const maxH = height - padding * 2;
           const scale = Math.min(maxW / baseImg.width, maxH / baseImg.height);
@@ -539,16 +539,17 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
       : POPULAR_FONTS.filter((f) => f.category === fontCategoryFilter);
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-8 shadow-sm">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         {/* ======================================================== */}
-        {/* COLUNA ESQUERDA: CANVAS INTERATIVO COM ARRASTE E SOLTE */}
+        {/* COLUNA ESQUERDA: CANVAS INTERATIVO COM ARRASTE E SOLTE (STICKY) */}
         {/* ======================================================== */}
-        <div className="flex flex-col items-center lg:col-span-7">
-          <div className="relative w-full max-w-[560px] overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-inner group select-none">
+        <div className="lg:col-span-6 xl:col-span-6">
+          <div className="lg:sticky lg:top-[144px] z-20 flex flex-col items-center w-full max-w-[430px] xl:max-w-[470px] mx-auto">
+            <div className="relative w-full aspect-square max-h-[calc(100vh-210px)] overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-inner group select-none">
             <canvas
               ref={canvasRef}
-              className={`h-auto w-full object-contain block transition-colors ${
+              className={`h-full w-full object-contain block transition-colors ${
                 isDragging ? 'cursor-grabbing' : isHoveringBox ? 'cursor-grab' : 'cursor-default'
               }`}
               width={600}
@@ -586,11 +587,12 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
             💡 <strong>Dica:</strong> Você pode clicar diretamente no texto ou na área tracejada da bolsa para arrastar e soltar onde preferir (no centro, nos bolsos ou abas).
           </p>
         </div>
+      </div>
 
         {/* ======================================================== */}
         {/* COLUNA DIREITA: CONTROLES DE PERSONALIZAÇÃO */}
         {/* ======================================================== */}
-        <div className="flex flex-col space-y-6 lg:col-span-5">
+        <div className="flex flex-col space-y-6 lg:col-span-6 xl:col-span-6">
           {/* Cabeçalho do Produto */}
           <div>
             <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
