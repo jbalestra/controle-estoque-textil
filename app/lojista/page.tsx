@@ -1338,7 +1338,7 @@ export default function LojistaPortalPage() {
                   className="h-4 w-4 rounded border-slate-700 bg-slate-800 accent-emerald-500"
                 />
                 <label htmlFor="custom" className="cursor-pointer">
-                  Permitir personalização (By You - Monogramas / Bordados)
+                  Permitir personalização (By You - Monogramas / Nomes)
                 </label>
               </div>
 

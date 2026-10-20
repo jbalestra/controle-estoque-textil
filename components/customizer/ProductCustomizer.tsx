@@ -20,7 +20,7 @@ export interface FontOption {
   description: string;
 }
 
-// PRINCIPAIS FONTES UTILIZADAS EM PERSONALIZAÇÃO, BORDADOS E BOLSAS DE LUXO / ESPORTIVAS
+// PRINCIPAIS FONTES UTILIZADAS EM PERSONALIZAÇÃO DE BOLSAS DE LUXO / ESPORTIVAS
 export const POPULAR_FONTS: FontOption[] = [
   // 1. Luxo & Serifadas Tradicionais (Estilo Louis Vuitton, Chanel, Monogramas de Alta Costura)
   {
@@ -51,7 +51,7 @@ export const POPULAR_FONTS: FontOption[] = [
     description: 'Linhas finas e acabamento nobre de alfaiataria',
   },
 
-  // 2. Cursivas & Caligrafia Bordada (Estilo Bordado de Atelier, Nomes Próprios)
+  // 2. Cursivas & Caligrafia Elegante (Estilo Atelier, Nomes Próprios)
   {
     id: 'Great Vibes',
     name: 'Great Vibes',
@@ -59,13 +59,13 @@ export const POPULAR_FONTS: FontOption[] = [
     categoryLabel: 'Cursiva Nobre',
     sample: 'Personalizado',
     family: '"Great Vibes", cursive',
-    description: 'Curvas fluidas tradicionais de bordado fino',
+    description: 'Curvas fluidas tradicionais e elegantes',
   },
   {
     id: 'Dancing Script',
     name: 'Dancing Script',
     category: 'cursiva',
-    categoryLabel: 'Bordado Artesanal',
+    categoryLabel: 'Caligrafia Autêntica',
     sample: 'Meu Estilo',
     family: '"Dancing Script", cursive',
     description: 'Caligrafia viva, expressiva e moderna',
@@ -132,14 +132,14 @@ export const THREAD_COLORS = [
 ];
 
 export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerProps) {
-  // Estados de customização de bordado / texto
+  // Estados de customização de texto
   const [customText, setCustomText] = useState<string>('');
   const [selectedFont, setSelectedFont] = useState<string>(POPULAR_FONTS[0].id);
   const [fontCategoryFilter, setFontCategoryFilter] = useState<'all' | 'luxo' | 'cursiva' | 'moderna' | 'bold'>('all');
   const [textColor, setTextColor] = useState<string>(THREAD_COLORS[0].hex);
   const [fontSize, setFontSize] = useState<number>(34);
 
-  // Posição interativa do bordado/texto na bolsa (coordenadas X, Y no Canvas 600x600)
+  // Posição interativa da personalização na bolsa (coordenadas X, Y no Canvas 600x600)
   const [textPosition, setTextPosition] = useState<{ x: number; y: number }>({ x: 300, y: 340 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -406,7 +406,7 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
       }
 
       // =========================================================================
-      // 6. RENDERIZAÇÃO DO TEXTO COM EFEITO DE BORDADO REALISTA
+      // 6. RENDERIZAÇÃO DO TEXTO COM EFEITO REALISTA
       // =========================================================================
       if (customText.trim()) {
         ctx.save();
@@ -414,7 +414,7 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Sombra de relevo de costura profunda
+        // Sombra de profundidade e contraste
         ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
         ctx.shadowOffsetX = 1.5;
         ctx.shadowOffsetY = 1.5;
@@ -422,7 +422,7 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
         ctx.fillStyle = textColor;
         ctx.fillText(customText, textPosition.x, textCenterY);
 
-        // Realce de brilho acetinado na parte superior da linha
+        // Realce de acabamento acetinado
         ctx.shadowColor = 'transparent';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.fillText(customText, textPosition.x - 0.5, textCenterY - 0.5);
@@ -639,7 +639,7 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4">
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-extrabold uppercase tracking-wider text-indigo-950">
-                1. Escreva o Texto para Bordar / Gravar *
+                1. Digite o Texto da Personalização *
               </label>
               <span className="text-[11px] font-bold text-indigo-600">
                 {customText.length}/35 caracteres
@@ -778,11 +778,11 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
           </div>
 
           {/* ======================================================== */}
-          {/* 3. CORES DA LINHA DE BORDADO */}
+          {/* 3. CORES DA PERSONALIZAÇÃO */}
           {/* ======================================================== */}
           <div>
             <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-900 mb-2">
-              3. Cor da Linha do Bordado
+              3. Cor da Personalização
             </label>
             <div className="flex flex-wrap gap-2.5">
               {THREAD_COLORS.map((color) => {
@@ -810,14 +810,14 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
           </div>
 
           {/* ======================================================== */}
-          {/* 4. AJUSTES DE TAMANHO E POSIÇÃO DO BORDADO */}
+          {/* 4. AJUSTES DE TAMANHO E POSIÇÃO DA PERSONALIZAÇÃO */}
           {/* ======================================================== */}
           <div className="space-y-4 pt-1">
             {/* Tamanho da Fonte */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-900">
-                  4. Tamanho do Bordado
+                  4. Tamanho da Personalização
                 </label>
                 <span className="text-[11px] font-bold text-slate-500">
                   {fontSize}px
@@ -1022,7 +1022,7 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                 <span className="font-bold text-slate-900">{selectedFont}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Cor do Bordado:</span>
+                <span className="text-slate-500">Cor da Personalização:</span>
                 <span className="font-bold text-slate-900">
                   {THREAD_COLORS.find((c) => c.hex === textColor)?.name || textColor}
                 </span>

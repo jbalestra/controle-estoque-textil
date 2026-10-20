@@ -65,7 +65,7 @@ O componente `ProductCustomizer.tsx` realiza a composição multi-camada:
 2. **Camada da Peça Base**: Mesclada via `globalCompositeOperation = 'multiply'` para projetar a trama do tecido sobre as dobras do produto.
 3. **Delimitação de Área Estampável**: Guia tracejada suave para orientar o cliente.
 4. **Camada de Arte do Cliente**: Suporte a arraste, zoom/escala, rotação e upload de até 15MB.
-5. **Tipografia Google Fonts**: Carregamento assíncrono dinâmico de fontes pré-aprovadas com simulação de relevo de linha de bordado.
+5. **Tipografia Google Fonts**: Carregamento assíncrono dinâmico de fontes pré-aprovadas com pré-visualização e renderização realista em alta definição.
 
 ---
 

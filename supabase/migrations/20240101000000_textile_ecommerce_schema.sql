@@ -127,9 +127,9 @@ CREATE TABLE IF NOT EXISTS public.order_item_customizations (
     consumed_meters NUMERIC(10, 2) NOT NULL CHECK (consumed_meters >= 0),
     artwork_file_url TEXT,                          -- URL do arquivo enviado pelo cliente em alta resolução (Supabase Storage)
     artwork_original_name TEXT,
-    custom_text TEXT,                               -- Texto bordado / estampado
+    custom_text TEXT,                               -- Texto personalizado / monograma
     font_id TEXT,                                   -- Identificador da fonte (ex: 'Playfair Display')
-    text_color TEXT,                                -- Hex da cor da linha ou tinta
+    text_color TEXT,                                -- Hex da cor da personalização
     canvas_snapshot_url TEXT,                       -- Imagem preview renderizada na aprovação do carrinho
     transform_matrix JSONB NOT NULL DEFAULT '{}'::jsonb, -- Coordenadas exatas: x, y, scale, rotation
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

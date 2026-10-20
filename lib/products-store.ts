@@ -164,7 +164,7 @@ export const INITIAL_PRODUCTS: StoreProduct[] = [
     sku: 'CAM-ALF-001',
     title: 'Camisa Alfaiataria Sob Medida Masculina',
     slug: 'camisa-alfaiataria',
-    description: 'Camisa personalizada com corte sob medida e bordado artesanal de iniciais.',
+    description: 'Camisa personalizada com corte sob medida e aplicação exclusiva de iniciais.',
     product_type: 'custom_made',
     base_price: 249.9,
     original_price: 299.9,

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+// @ts-ignore
 import { usePathname } from 'next/navigation';
 
 export function NikeHeader() {
@@ -103,7 +104,7 @@ export function NikeHeader() {
             <span>&lsaquo;</span>
             <span className="font-extrabold tracking-tight uppercase">PERSONALIZAÇÃO EXCLUSIVA:</span>
             <span className="font-normal text-slate-700">
-              Personalize sua bolsa com bordados, monogramas e fontes exclusivas em tempo real.
+              Personalize sua bolsa com monogramas, nomes e fontes exclusivas em tempo real.
             </span>
             <Link
               href="/customize/bolsa-tote-canvas"
