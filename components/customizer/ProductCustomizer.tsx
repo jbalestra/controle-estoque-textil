@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Product, Fabric, TransformMatrix } from '@/types/database';
 import { OrderItemInput } from '@/lib/validations/order';
 import { useCart } from '@/lib/cart-context';
+import { CheckoutModal } from '@/components/checkout/CheckoutModal';
 
 interface ProductCustomizerProps {
   product: Product;
@@ -162,8 +163,9 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   const [artworkPreviewUrl, setArtworkPreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Feedback de Sucesso
+  // Feedback de Sucesso e Checkout Seguro
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
 
   // Referência do Canvas
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -533,6 +535,10 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   };
 
   const handleFinalize = () => {
+    handleAddToCart();
+  };
+
+  const handleAddToCart = () => {
     const snapshot = canvasRef.current?.toDataURL('image/png') || product.base_mockup_url;
     const numericUnitPrice = parseFloat(String(unitPrice).replace(',', '.')) || product.base_price;
 
@@ -572,6 +578,10 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
     }
 
     setIsSuccessModalOpen(true);
+  };
+
+  const handleDirectMercadoPagoCheckout = () => {
+    setIsCheckoutModalOpen(true);
   };
 
   // Filtragem de fontes por categoria
@@ -1078,23 +1088,35 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleFinalize}
-            disabled={product.stock_quantity <= 0}
-            className="w-full rounded-full bg-gradient-to-r from-black via-slate-900 to-black py-4 text-xs font-black uppercase tracking-widest text-amber-400 shadow-xl shadow-black/15 hover:from-slate-900 hover:to-slate-800 active:scale-98 transition-all flex items-center justify-center gap-2 mt-3 border border-amber-500/30 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
-          >
-            <span>
-              {product.stock_quantity > 0
-                ? `Adicionar à Sacola de Compras (${customQuantity} un • R$ ${(
-                    parseFloat(unitPrice.replace(',', '.')) * customQuantity
-                  )
-                    .toFixed(2)
-                    .replace('.', ',')})`
-                : 'Produto Sem Estoque no Momento'}
-            </span>
-            <span>&rarr;</span>
-          </button>
+          <div className="flex flex-col gap-2.5 mt-3">
+            <button
+              type="button"
+              onClick={handleFinalize}
+              disabled={product.stock_quantity <= 0}
+              className="w-full rounded-full bg-gradient-to-r from-black via-slate-900 to-black py-4 text-xs font-black uppercase tracking-widest text-amber-400 shadow-xl shadow-black/15 hover:from-slate-900 hover:to-slate-800 active:scale-98 transition-all flex items-center justify-center gap-2 border border-amber-500/30 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
+            >
+              <span>
+                {product.stock_quantity > 0
+                  ? `Adicionar à Sacola (${customQuantity} un • R$ ${(
+                      parseFloat(unitPrice.replace(',', '.')) * customQuantity
+                    )
+                      .toFixed(2)
+                      .replace('.', ',')})`
+                  : 'Produto Sem Estoque no Momento'}
+              </span>
+              <span>&rarr;</span>
+            </button>
+
+            {product.stock_quantity > 0 && (
+              <button
+                type="button"
+                onClick={handleDirectMercadoPagoCheckout}
+                className="w-full rounded-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 py-3.5 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 active:scale-98 transition-all flex items-center justify-center gap-2"
+              >
+                <span>⚡ Comprar Agora com Mercado Pago</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1162,6 +1184,17 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                 <span>&rarr;</span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSuccessModalOpen(false);
+                  setIsCheckoutModalOpen(true);
+                }}
+                className="w-full rounded-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 py-3 text-xs font-black uppercase tracking-wider text-black shadow-md shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 active:scale-98 transition-all flex items-center justify-center gap-2"
+              >
+                <span>💳 Pagar Agora com Mercado Pago</span>
+              </button>
+
               <div className="flex gap-2 mt-1">
                 <button
                   type="button"
@@ -1185,6 +1218,20 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
           </div>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* MODAL DE CHECKOUT SEGURO MERCADO PAGO */}
+      {/* ======================================================== */}
+      <CheckoutModal
+        isOpen={isCheckoutModalOpen}
+        onClose={() => setIsCheckoutModalOpen(false)}
+        product={product}
+        customText={customText}
+        fontId={selectedFont}
+        textColor={textColor}
+        unitPrice={unitPrice}
+        canvasSnapshotUrl={canvasRef.current ? canvasRef.current.toDataURL('image/png') : undefined}
+      />
     </div>
   );
 }

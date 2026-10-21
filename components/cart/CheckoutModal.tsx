@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCart, OrderRecord } from '@/lib/cart-context';
+import { createCheckoutPreferenceAction } from '@/actions/create-checkout-preference';
 
 export function CheckoutModal() {
   const {
@@ -87,7 +88,7 @@ export function CheckoutModal() {
 
   const finalAmount = paymentMethod === 'pix' ? totalPix : totalCard;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -109,6 +110,55 @@ export function CheckoutModal() {
     setIsSubmitting(true);
 
     try {
+      // 1. Tentar gerar preferência de pagamento oficial no Mercado Pago Checkout Pro
+      const preferenceResult = await createCheckoutPreferenceAction({
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        shipping_address: {
+          recipient_name: customerName,
+          street: street,
+          number: number,
+          complement: complement || null,
+          neighborhood: neighborhood,
+          city: city,
+          state: state.toUpperCase(),
+          postal_code: cep,
+          country: 'Brasil',
+        },
+        items: items.map((it) => ({
+          product_id: it.productId,
+          quantity: it.quantity,
+          custom_text: it.customization?.customText || null,
+          font_id: it.customization?.fontName || null,
+          text_color: it.customization?.textColor || null,
+          snapshot_url: it.customization?.previewSnapshotUrl || it.imageUrl || null,
+        })),
+      });
+
+      if (preferenceResult.success && preferenceResult.initPoint) {
+        completeOrder({
+          customerName,
+          customerEmail,
+          customerPhone,
+          shippingAddress: {
+            cep,
+            street,
+            number,
+            complement,
+            neighborhood,
+            city,
+            state,
+          },
+          paymentMethod,
+        });
+
+        // Redirecionamento seguro para o Mercado Pago (Pix / Cartão / Boleto)
+        window.location.href = preferenceResult.initPoint;
+        return;
+      }
+
+      // 2. Fallback de contingência caso Mercado Pago esteja sem credenciais configuradas localmente
       const order = completeOrder({
         customerName,
         customerEmail,
