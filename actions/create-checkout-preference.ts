@@ -226,7 +226,7 @@ export async function createCheckoutPreferenceAction(
           },
         },
         back_urls: backUrls,
-        auto_return: 'approved',
+        auto_return: baseUrl.startsWith('https://') && !baseUrl.includes('localhost') ? 'approved' : undefined,
         notification_url: notificationUrl,
         statement_descriptor: 'ATELIE TEXTIL',
         external_reference: orderId,
