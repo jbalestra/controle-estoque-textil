@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Product } from '@/types/database';
 
+import { useCart } from '@/lib/cart-context';
+
 interface NikeProductCardProps {
   product: Product & {
     categoryLabel: string;
@@ -17,9 +19,37 @@ interface NikeProductCardProps {
 
 export function NikeProductCard({ product, onOpenCustomizer }: NikeProductCardProps) {
   const [isFavorited, setIsFavorited] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  const { addItem, items } = useCart();
 
   const hasStock = product.stock_quantity > 0;
   const isLowStock = product.stock_quantity > 0 && product.stock_quantity <= 5;
+
+  // Verifica se o item já está no carrinho
+  const inCartItem = items.find((i) => i.productId === product.id && !i.isCustomized);
+  const qtyInCart = inCartItem?.quantity || 0;
+
+  const handleQuickAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!hasStock) return;
+
+    addItem({
+      productId: product.id,
+      productTitle: product.title,
+      productSlug: product.slug,
+      categoryLabel: product.categoryLabel,
+      basePrice: product.base_price,
+      unitPrice: product.base_price,
+      quantity: 1,
+      maxStock: product.stock_quantity,
+      imageUrl: product.base_mockup_url,
+      isCustomized: false,
+    });
+
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 2000);
+  };
 
   return (
     <div className="group relative flex flex-col font-sans transition-all">
@@ -63,6 +93,11 @@ export function NikeProductCard({ product, onOpenCustomizer }: NikeProductCardPr
               Personalizável (By You)
             </div>
           )}
+          {qtyInCart > 0 && (
+            <div className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-black shadow-sm">
+              {qtyInCart} na sacola
+            </div>
+          )}
         </div>
 
         {/* BADGE DE QUANTIDADE EM ESTOQUE NO CANTO DA FOTO */}
@@ -88,13 +123,33 @@ export function NikeProductCard({ product, onOpenCustomizer }: NikeProductCardPr
         </div>
 
         {/* Ação rápida hover */}
-        <div className="absolute inset-x-3 bottom-3 z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <Link
-            href={`/customize/${product.slug}`}
-            className="flex w-full items-center justify-center rounded-full bg-black py-2.5 text-xs font-bold text-white shadow-lg transition-transform hover:bg-slate-800 active:scale-95"
-          >
-            {hasStock ? 'Personalizar & Comprar' : 'Ver Detalhes'}
-          </Link>
+        <div className="absolute inset-x-3 bottom-3 z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex gap-2">
+          {hasStock ? (
+            <>
+              {product.isCustomizable ? (
+                <Link
+                  href={`/customize/${product.slug}`}
+                  className="flex-1 flex items-center justify-center rounded-full bg-black py-2.5 text-xs font-bold text-white shadow-lg transition-transform hover:bg-slate-800 active:scale-95 text-center"
+                >
+                  Personalizar
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleQuickAddToCart}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-amber-500 py-2.5 text-xs font-black text-black shadow-lg transition-transform hover:bg-amber-400 active:scale-95 text-center"
+              >
+                <span>+ Sacola</span>
+              </button>
+            </>
+          ) : (
+            <Link
+              href={`/customize/${product.slug}`}
+              className="flex w-full items-center justify-center rounded-full bg-slate-900 py-2.5 text-xs font-bold text-white shadow-lg transition-transform hover:bg-slate-800"
+            >
+              Ver Detalhes
+            </Link>
+          )}
         </div>
       </div>
 
@@ -133,19 +188,33 @@ export function NikeProductCard({ product, onOpenCustomizer }: NikeProductCardPr
         )}
 
         {/* Preço estilo Nike: Preço no Pix + Preço De + % OFF */}
-        <div className="pt-1 flex items-baseline gap-2">
-          <span className="text-base font-extrabold text-black">
-            R$ {product.pixPrice}
-          </span>
-          {product.discountPercent && product.discountPercent.trim() !== '' && product.discountPercent !== '0% off' && (
-            <>
-              <span className="text-xs text-[#707072] line-through">
-                R$ {product.originalPrice}
-              </span>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-100">
-                {product.discountPercent}
-              </span>
-            </>
+        <div className="pt-1 flex items-baseline justify-between">
+          <div className="flex items-baseline gap-2">
+            <span className="text-base font-extrabold text-black">
+              R$ {product.pixPrice}
+            </span>
+            {product.discountPercent && product.discountPercent.trim() !== '' && product.discountPercent !== '0% off' && (
+              <>
+                <span className="text-xs text-[#707072] line-through">
+                  R$ {product.originalPrice}
+                </span>
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-100">
+                  {product.discountPercent}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* BOTÃO COMPACTO VISÍVEL EM DISPOSITIVOS MÓVEIS OU SEM HOVER */}
+          {hasStock && (
+            <button
+              type="button"
+              onClick={handleQuickAddToCart}
+              className="rounded-full bg-black hover:bg-slate-800 text-white px-3 py-1.5 text-[11px] font-extrabold active:scale-95 transition-all shadow-xs flex items-center gap-1"
+              title="Adicionar à sacola"
+            >
+              <span>{justAdded ? '✓ Adicionado' : '+ Sacola'}</span>
+            </button>
           )}
         </div>
       </div>

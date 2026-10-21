@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Product, Fabric, TransformMatrix } from '@/types/database';
 import { OrderItemInput } from '@/lib/validations/order';
+import { useCart } from '@/lib/cart-context';
 
 interface ProductCustomizerProps {
   product: Product;
@@ -132,6 +133,9 @@ export const THREAD_COLORS = [
 ];
 
 export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerProps) {
+  const { addItem, openCart, totalItems } = useCart();
+  const [customQuantity, setCustomQuantity] = useState<number>(1);
+
   // Estados de customização de texto
   const [customText, setCustomText] = useState<string>('');
   const [selectedFont, setSelectedFont] = useState<string>(POPULAR_FONTS[0].id);
@@ -529,6 +533,44 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   };
 
   const handleFinalize = () => {
+    const snapshot = canvasRef.current?.toDataURL('image/png') || product.base_mockup_url;
+    const numericUnitPrice = parseFloat(String(unitPrice).replace(',', '.')) || product.base_price;
+
+    addItem({
+      productId: product.id,
+      productTitle: product.title,
+      productSlug: product.slug,
+      categoryLabel: 'Nécessaires & Bolsas Personalizadas',
+      basePrice: product.base_price,
+      unitPrice: numericUnitPrice,
+      quantity: customQuantity,
+      maxStock: product.stock_quantity,
+      imageUrl: product.base_mockup_url,
+      isCustomized: true,
+      customization: {
+        customText: customText.trim() || undefined,
+        fontName: selectedFont,
+        textColor: textColor,
+        textColorName: THREAD_COLORS.find((c) => c.hex === textColor)?.name || textColor,
+        artworkPreviewUrl: artworkPreviewUrl || undefined,
+        previewSnapshotUrl: snapshot,
+      },
+    });
+
+    if (onAddToCart) {
+      onAddToCart(
+        {
+          product_id: product.id,
+          quantity: customQuantity,
+          custom_text: customText.trim() || undefined,
+          font_id: selectedFont,
+          text_color: textColor,
+          snapshot_url: snapshot,
+        },
+        snapshot
+      );
+    }
+
     setIsSuccessModalOpen(true);
   };
 
@@ -983,35 +1025,93 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
           </div>
 
           {/* ======================================================== */}
-          {/* BOTÃO FINALIZAR PEDIDO */}
+          {/* SELETOR DE QUANTIDADE & BOTÃO ADICIONAR À SACOLA */}
           {/* ======================================================== */}
+          <div className="rounded-2xl bg-slate-50 p-3.5 border border-slate-200 mt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-black text-slate-900 block">
+                  Quantidade desta peça:
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {product.stock_quantity > 0
+                    ? `${product.stock_quantity} un disponíveis em estoque`
+                    : 'Produto esgotado'}
+                </span>
+              </div>
+
+              <div className="flex items-center rounded-full border border-slate-300 bg-white p-1 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setCustomQuantity((q) => Math.max(1, q - 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200 active:scale-90 transition-transform"
+                  aria-label="Diminuir quantidade"
+                >
+                  -
+                </button>
+                <span className="w-9 text-center text-xs font-black text-slate-900">
+                  {customQuantity}
+                </span>
+                <button
+                  type="button"
+                  disabled={product.stock_quantity > 0 && customQuantity >= product.stock_quantity}
+                  onClick={() =>
+                    setCustomQuantity((q) =>
+                      Math.min(product.stock_quantity > 0 ? product.stock_quantity : 99, q + 1)
+                    )
+                  }
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200 active:scale-90 transition-transform disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Aumentar quantidade"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {customQuantity > 1 && (
+              <div className="mt-2 pt-2 border-t border-slate-200/80 flex justify-between text-xs">
+                <span className="text-slate-500">Subtotal ({customQuantity} un):</span>
+                <span className="font-extrabold text-slate-900">
+                  R$ {(parseFloat(unitPrice.replace(',', '.')) * customQuantity).toFixed(2).replace('.', ',')}
+                </span>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={handleFinalize}
-            className="w-full rounded-full bg-black py-4 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800 active:scale-95 shadow-xl shadow-black/10 flex items-center justify-center gap-2 mt-2"
+            disabled={product.stock_quantity <= 0}
+            className="w-full rounded-full bg-gradient-to-r from-black via-slate-900 to-black py-4 text-xs font-black uppercase tracking-widest text-amber-400 shadow-xl shadow-black/15 hover:from-slate-900 hover:to-slate-800 active:scale-98 transition-all flex items-center justify-center gap-2 mt-3 border border-amber-500/30 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
           >
-            <span>Confirmar Personalização & Encomendar (R$ {unitPrice})</span>
+            <span>
+              {product.stock_quantity > 0
+                ? `Adicionar à Sacola de Compras (${customQuantity} un • R$ ${(
+                    parseFloat(unitPrice.replace(',', '.')) * customQuantity
+                  )
+                    .toFixed(2)
+                    .replace('.', ',')})`
+                : 'Produto Sem Estoque no Momento'}
+            </span>
             <span>&rarr;</span>
           </button>
         </div>
       </div>
 
       {/* ======================================================== */}
-      {/* MODAL DE SUCESSO AO ENCOMENDAR */}
+      {/* MODAL DE SUCESSO AO ADICIONAR À SACOLA */}
       {/* ======================================================== */}
       {isSuccessModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-7 text-center shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 text-2xl font-black mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-7 text-center shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-200">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 text-2xl font-black mb-4 shadow-xs">
               ✓
             </div>
             <h3 className="text-xl font-black text-slate-900 tracking-tight">
-              Peça Personalizada com Sucesso!
+              Peça Adicionada à Sacola!
             </h3>
             <p className="mt-2 text-xs text-slate-600">
-              Sua bolsa exclusiva foi configurada com a fonte{' '}
-              <strong className="text-slate-900">{selectedFont}</strong> e o texto{' '}
-              <strong className="text-indigo-600">"{customText || 'Monograma Padrão'}"</strong>.
+              Sua bolsa personalizada ({customQuantity} un) foi incluída na sua sacola de compras.
             </p>
 
             <div className="my-5 rounded-2xl bg-slate-50 p-4 text-xs text-left space-y-1.5 border border-slate-200">
@@ -1020,35 +1120,67 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                 <span className="font-bold text-slate-900">{product.title}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-slate-500">Quantidade:</span>
+                <span className="font-bold text-amber-700">{customQuantity} un</span>
+              </div>
+              {customText.trim() && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Monograma:</span>
+                  <span className="font-bold text-slate-900">"{customText}"</span>
+                </div>
+              )}
+              <div className="flex justify-between">
                 <span className="text-slate-500">Fonte:</span>
                 <span className="font-bold text-slate-900">{selectedFont}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Cor da Personalização:</span>
+                <span className="text-slate-500">Cor do Fio:</span>
                 <span className="font-bold text-slate-900">
                   {THREAD_COLORS.find((c) => c.hex === textColor)?.name || textColor}
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-1.5">
-                <span className="font-bold text-slate-900">Valor Final:</span>
-                <span className="font-black text-emerald-600 text-sm">R$ {unitPrice}</span>
+                <span className="font-bold text-slate-900">Subtotal Adicionado:</span>
+                <span className="font-black text-emerald-600 text-sm">
+                  R$ {(parseFloat(unitPrice.replace(',', '.')) * customQuantity)
+                    .toFixed(2)
+                    .replace('.', ',')}
+                </span>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => setIsSuccessModalOpen(false)}
-                className="flex-1 rounded-full border border-slate-300 py-3 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                onClick={() => {
+                  setIsSuccessModalOpen(false);
+                  openCart();
+                }}
+                className="w-full rounded-full bg-black py-3.5 text-xs font-black uppercase tracking-wider text-amber-400 hover:bg-slate-800 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
               >
-                Continuar Editando
+                <span>Ver Sacola & Finalizar ({totalItems} itens)</span>
+                <span>&rarr;</span>
               </button>
-              <a
-                href="/"
-                className="flex-1 rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800"
-              >
-                Voltar à Loja
-              </a>
+
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSuccessModalOpen(false);
+                    setCustomText('');
+                    setCustomQuantity(1);
+                  }}
+                  className="flex-1 rounded-full border border-slate-300 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  + Personalizar Outra
+                </button>
+                <a
+                  href="/"
+                  className="flex-1 rounded-full border border-slate-200 bg-slate-100 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-200 transition-colors"
+                >
+                  Explorar Catálogo
+                </a>
+              </div>
             </div>
           </div>
         </div>

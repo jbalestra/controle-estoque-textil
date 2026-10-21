@@ -5,9 +5,11 @@ import Link from 'next/link';
 // @ts-ignore
 import { usePathname } from 'next/navigation';
 
+import { useCart } from '@/lib/cart-context';
+
 export function NikeHeader() {
   const pathname = usePathname();
-  const [cartCount, setCartCount] = useState(1);
+  const { totalItems, openCart } = useCart();
 
   if (pathname?.startsWith('/lojista')) {
     return null;
@@ -82,6 +84,7 @@ export function NikeHeader() {
 
             {/* Favoritos */}
             <button
+              type="button"
               className="p-2 rounded-full hover:bg-slate-100 text-black transition-colors"
               aria-label="Favoritos"
             >
@@ -90,21 +93,23 @@ export function NikeHeader() {
               </svg>
             </button>
 
-            {/* Sacola de Compras com contador */}
-            <Link
-              href="/customize/bolsa-tote-canvas"
-              className="relative p-2 rounded-full hover:bg-slate-100 text-black transition-colors"
-              aria-label="Sacola"
+            {/* Sacola de Compras Interativa com contador dinâmico */}
+            <button
+              type="button"
+              onClick={openCart}
+              className="relative p-2 rounded-full hover:bg-slate-100 text-black transition-all group active:scale-95"
+              aria-label="Abrir sacola de compras"
+              title="Ver sacola de compras"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-              {cartCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black text-[10px] font-bold text-white">
-                  {cartCount}
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-black shadow-md ring-2 ring-white animate-in zoom-in-75">
+                  {totalItems}
                 </span>
               )}
-            </Link>
+            </button>
           </div>
         </div>
 

@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { NikeHeader } from '@/components/nike/NikeHeader';
+import { CartProvider } from '@/lib/cart-context';
+import { CartDrawer } from '@/components/cart/CartDrawer';
+import { CheckoutModal } from '@/components/cart/CheckoutModal';
 
 export const metadata: Metadata = {
   title: 'Bags House | Nécessaires Personalizadas & Bolsas Sob Medida',
@@ -28,8 +31,12 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased min-h-screen bg-white text-black selection:bg-black selection:text-white">
-        <NikeHeader />
-        {children}
+        <CartProvider>
+          <NikeHeader />
+          {children}
+          <CartDrawer />
+          <CheckoutModal />
+        </CartProvider>
       </body>
     </html>
   );
