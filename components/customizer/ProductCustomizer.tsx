@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Product, Fabric, TransformMatrix } from '@/types/database';
 import { OrderItemInput } from '@/lib/validations/order';
+import { CheckoutModal } from '@/components/checkout/CheckoutModal';
 
 interface ProductCustomizerProps {
   product: Product;
@@ -158,8 +159,9 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   const [artworkPreviewUrl, setArtworkPreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Feedback de Sucesso
+  // Feedback de Sucesso e Checkout Seguro
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
 
   // Referência do Canvas
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -529,7 +531,7 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   };
 
   const handleFinalize = () => {
-    setIsSuccessModalOpen(true);
+    setIsCheckoutModalOpen(true);
   };
 
   // Filtragem de fontes por categoria
@@ -1053,6 +1055,20 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
           </div>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* MODAL DE CHECKOUT SEGURO MERCADO PAGO */}
+      {/* ======================================================== */}
+      <CheckoutModal
+        isOpen={isCheckoutModalOpen}
+        onClose={() => setIsCheckoutModalOpen(false)}
+        product={product}
+        customText={customText}
+        fontId={selectedFont}
+        textColor={textColor}
+        unitPrice={unitPrice}
+        canvasSnapshotUrl={canvasRef.current ? canvasRef.current.toDataURL('image/png') : undefined}
+      />
     </div>
   );
 }
