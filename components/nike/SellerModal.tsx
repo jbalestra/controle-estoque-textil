@@ -10,7 +10,7 @@ interface SellerModalProps {
 
 export function SellerModal({ isOpen, onClose }: SellerModalProps) {
   const [activeTab, setActiveTab] = useState<'login' | 'dashboard'>('dashboard');
-  const [email, setEmail] = useState('lojista@atelie.com.br');
+  const [email, setEmail] = useState('lojista@bagshouse.com.br');
   const [password, setPassword] = useState('••••••••');
 
   if (!isOpen) return null;
@@ -34,15 +34,15 @@ export function SellerModal({ isOpen, onClose }: SellerModalProps) {
 
         {/* Cabeçalho */}
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black text-white font-black text-lg">
-            AT
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black border border-amber-500/30 overflow-hidden shadow-md shrink-0">
+            <img src="/logo.png" alt="Bags House" className="h-full w-full object-cover" />
           </div>
           <div>
             <h2 className="text-xl font-extrabold tracking-tight text-slate-950">
-              Painel do Lojista & Fábrica
+              Bags House • Painel do Lojista
             </h2>
             <p className="text-xs text-slate-500">
-              Gestão de produção têxtil, corte de rolos e insumos
+              Gestão de nécessaires, bolsas, fotos, estoque e produção
             </p>
           </div>
         </div>

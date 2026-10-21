@@ -18,7 +18,7 @@ export default function LojistaPortalPage() {
   // Estado de Autenticação do Lojista
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('lojista@atelie.com.br');
+  const [loginEmail, setLoginEmail] = useState('lojista@bagshouse.com.br');
   const [loginPassword, setLoginPassword] = useState('lojista123');
   const [loginError, setLoginError] = useState('');
 
@@ -78,7 +78,7 @@ export default function LojistaPortalPage() {
   };
 
   const handleQuickDemoLogin = () => {
-    setLoginEmail('lojista@atelie.com.br');
+    setLoginEmail('lojista@bagshouse.com.br');
     setLoginPassword('lojista123');
     setIsAuthenticated(true);
     localStorage.setItem('atelie_lojista_logged_in', 'true');
@@ -242,12 +242,12 @@ export default function LojistaPortalPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black font-sans text-white flex flex-col justify-between p-6">
         {/* Barra superior discreta */}
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between py-2">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-black font-black text-sm">
-              AT
-            </span>
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 overflow-hidden rounded-xl border border-amber-500/30 bg-black shadow-md flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="Bags House" className="h-full w-full object-cover" />
+            </div>
             <span className="text-sm font-bold tracking-tight text-white">
-              PORTAL DO LOJISTA • ATELIÊ
+              PORTAL DO LOJISTA • <span className="text-amber-400">BAGS HOUSE</span>
             </span>
           </div>
 
@@ -264,14 +264,14 @@ export default function LojistaPortalPage() {
           <div className="rounded-3xl border border-slate-800 bg-slate-900/90 backdrop-blur-xl p-8 shadow-2xl shadow-black/80">
             {/* Ícone & Cabeçalho */}
             <div className="text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-black font-black text-xl shadow-lg">
-                👜
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-black border border-amber-500/30 overflow-hidden shadow-xl">
+                <img src="/logo.png" alt="Bags House" className="h-full w-full object-cover" />
               </div>
               <h1 className="mt-4 text-2xl font-black tracking-tight text-white">
-                Acesso das Lojas
+                Bags House • Acesso Lojas
               </h1>
               <p className="mt-1 text-xs text-slate-400">
-                Gerencie bolsas, fotos, estoque e descontos em tempo real.
+                Gerencie nécessaires, bolsas, fotos, estoque e descontos em tempo real.
               </p>
             </div>
 
@@ -292,7 +292,7 @@ export default function LojistaPortalPage() {
                   type="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="sua-loja@atelie.com.br"
+                  placeholder="sua-loja@bagshouse.com.br"
                   required
                   className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-white focus:outline-none focus:ring-1 focus:ring-white transition-all"
                 />
@@ -363,7 +363,7 @@ export default function LojistaPortalPage() {
         </div>
 
         <div className="text-center text-xs text-slate-600 py-2">
-          &copy; 2026 Ateliê Têxtil & Bolsas • Sistema de Controle e Gestão de Estoque
+          &copy; 2026 Bags House • Nécessaires Personalizadas & Bolsas Sob Medida
         </div>
       </div>
     );
@@ -410,13 +410,13 @@ export default function LojistaPortalPage() {
       <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-900/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-black font-black text-lg shadow-md">
-              👜
-            </span>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-black border border-amber-500/30 overflow-hidden shadow-md shrink-0">
+              <img src="/logo.png" alt="Bags House" className="h-full w-full object-cover" />
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-black text-white tracking-tight">
-                  Painel do Lojista • Bolsas, Estoque & Descontos
+                  Bags House • Painel do Lojista
                 </h1>
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -424,7 +424,7 @@ export default function LojistaPortalPage() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Coloque fotos de bolsas, ajuste estoque e aplique descontos em tempo real para os compradores.
+                Gerencie nécessaires e bolsas, fotos de produtos, estoque e descontos em tempo real.
               </p>
             </div>
           </div>

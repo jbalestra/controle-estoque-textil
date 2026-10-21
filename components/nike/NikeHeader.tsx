@@ -16,47 +16,57 @@ export function NikeHeader() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full bg-white shadow-sm font-sans">
-        {/* BARRA SUPERIOR DE UTILITÁRIOS (IDÊNTICA À NIKE) */}
-        <div className="bg-[#f5f5f5] text-[11px] text-[#707072] font-medium border-b border-[#e5e5e5]">
+        {/* BARRA SUPERIOR DE UTILITÁRIOS */}
+        <div className="bg-[#0f0f10] text-[11px] text-[#b3b3b3] font-medium border-b border-[#222]">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-1.5">
-            {/* Ícones de marca à esquerda (Jordan / Converse / Ateliê) */}
-            <div className="flex items-center gap-4">
-              <span className="font-extrabold text-black tracking-wider text-xs">ATELIÊ</span>
-              <span className="text-[10px] text-slate-400 font-bold">BY YOU</span>
+            {/* Nome da Marca à esquerda */}
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-amber-400 tracking-wider text-xs">BAGS HOUSE</span>
+              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest hidden sm:inline">• Nécessaires Personalizadas</span>
             </div>
 
-            {/* LINKS À DIREITA (CONFORME PADRÃO DA LOJA) */}
+            {/* LINKS À DIREITA */}
             <div className="flex items-center gap-3">
-              <span className="hover:text-black cursor-pointer hidden md:inline">Acessibilidade</span>
-              <span className="text-slate-300 hidden md:inline">|</span>
-              <span className="hover:text-black cursor-pointer hidden md:inline">Encontre uma loja</span>
-              <span className="text-slate-300 hidden md:inline">|</span>
-              <span className="hover:text-black cursor-pointer">Acompanhe seu pedido</span>
-              <span className="text-slate-300">|</span>
-              <span className="hover:text-black cursor-pointer">Ajuda</span>
+              <span className="hover:text-white cursor-pointer hidden md:inline">Acessibilidade</span>
+              <span className="text-zinc-700 hidden md:inline">|</span>
+              <span className="hover:text-white cursor-pointer hidden md:inline">Encontre uma loja</span>
+              <span className="text-zinc-700 hidden md:inline">|</span>
+              <span className="hover:text-white cursor-pointer">Acompanhe seu pedido</span>
+              <span className="text-zinc-700">|</span>
+              <span className="hover:text-white cursor-pointer">Ajuda</span>
             </div>
           </div>
         </div>
 
-        {/* BARRA PRINCIPAL DE NAVEGAÇÃO DA NIKE */}
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-          {/* Logo Estilo Nike */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <svg
-              className="h-8 w-14 fill-black transition-transform group-hover:scale-105"
-              viewBox="0 0 24 24"
-            >
-              {/* Ícone estilizado Swoosh moderno */}
-              <path d="M21.707 5.293c-.391-.391-1.023-.391-1.414 0l-12 12c-.391.391-1.023.391-1.414 0l-4-4c-.391-.391-1.023-.391-1.414 0s-.391 1.023 0 1.414l4.707 4.707c.391.391 1.023.391 1.414 0l12.707-12.707c.391-.391.391-1.023 0-1.414z" />
-            </svg>
-            <span className="text-xl font-black tracking-tighter text-black">
-              ATELIÊ<span className="text-indigo-600">.</span>
-            </span>
+        {/* BARRA PRINCIPAL DE NAVEGAÇÃO */}
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2.5">
+          {/* Logo Bags House com imagem oficial */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative h-11 w-11 sm:h-12 sm:w-12 overflow-hidden rounded-xl bg-black border border-amber-500/30 shadow-md transition-all group-hover:scale-105 group-hover:border-amber-400 flex items-center justify-center shrink-0">
+              <img
+                src="/logo.png"
+                alt="Logo Bags House"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5 leading-none">
+                <span className="text-xl sm:text-2xl font-black tracking-tight text-black">
+                  BAGS
+                </span>
+                <span className="text-xl sm:text-2xl font-black tracking-tight text-amber-600">
+                  HOUSE
+                </span>
+              </div>
+              <span className="text-[9px] font-bold tracking-widest text-slate-500 uppercase mt-0.5">
+                Nécessaires Personalizadas
+              </span>
+            </div>
           </Link>
 
           {/* Ferramentas: Busca, Wishlist e Sacola */}
           <div className="flex items-center gap-3">
-            {/* Input de Busca estilo Nike */}
+            {/* Input de Busca */}
             <div className="relative hidden sm:block">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,8 +75,8 @@ export function NikeHeader() {
               </span>
               <input
                 type="text"
-                placeholder="Buscar produtos, tecidos..."
-                className="w-44 lg:w-56 rounded-full bg-[#f5f5f5] py-2 pl-9 pr-4 text-xs text-black placeholder-[#707072] focus:bg-white focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                placeholder="Buscar nécessaires, bolsas..."
+                className="w-44 lg:w-56 rounded-full bg-[#f5f5f5] py-2 pl-9 pr-4 text-xs text-black placeholder-[#707072] focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
               />
             </div>
 
@@ -98,17 +108,17 @@ export function NikeHeader() {
           </div>
         </div>
 
-        {/* TICKER DE PROMOÇÕES / AVISOS NIKE BY YOU */}
-        <div className="bg-[#f7f7f7] border-t border-[#e5e5e5] py-2 text-center text-xs font-semibold text-black">
+        {/* TICKER DE PROMOÇÕES / AVISOS */}
+        <div className="bg-[#f9f9f9] border-t border-[#e5e5e5] py-2 text-center text-xs font-semibold text-black">
           <div className="mx-auto flex max-w-7xl items-center justify-center gap-2">
             <span>&lsaquo;</span>
-            <span className="font-extrabold tracking-tight uppercase">PERSONALIZAÇÃO EXCLUSIVA:</span>
+            <span className="font-extrabold tracking-tight uppercase text-amber-700">BAGS HOUSE EXCLUSIVA:</span>
             <span className="font-normal text-slate-700">
-              Personalize sua bolsa com monogramas, nomes e fontes exclusivas em tempo real.
+              Personalize sua nécessaire com monogramas, bordados e acabamentos nobres em tempo real.
             </span>
             <Link
               href="/customize/bolsa-tote-canvas"
-              className="underline font-bold hover:text-indigo-600 transition-colors ml-1"
+              className="underline font-bold hover:text-amber-600 transition-colors ml-1"
             >
               Personalizar Agora
             </Link>

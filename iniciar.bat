@@ -1,8 +1,8 @@
 @echo off
-title Atelie Textil - Servidor de Desenvolvimento com Sincronizacao
+title Bags House - Servidor de Desenvolvimento com Sincronizacao
 color 0B
 echo ========================================================
-echo   Plataforma de E-commerce Textil Sob Medida
+echo   Bags House - Necessaires Personalizadas & E-commerce
 echo   Modo Turbo: Executando no Disco C: com Backup no Pendrive
 echo ========================================================
 echo.

@@ -28,7 +28,7 @@ export const POPULAR_FONTS: FontOption[] = [
     name: 'Playfair Display',
     category: 'luxo',
     categoryLabel: 'Serifada Luxo',
-    sample: 'Ateliê & Co.',
+    sample: 'Bags House',
     family: '"Playfair Display", serif',
     description: 'Elegante, clássica e tradicional para monogramas',
   },

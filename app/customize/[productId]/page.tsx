@@ -93,8 +93,8 @@ export default function CustomizePage({ params }: CustomizePageProps) {
                 ✕ Esgotado
               </span>
             )}
-            <span className="rounded-full bg-black px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white">
-              Ateliê By You • Customização Ativa
+            <span className="rounded-full bg-black px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-amber-400 border border-amber-500/30">
+              Bags House By You • Customização Ativa
             </span>
           </div>
         </div>

@@ -3,8 +3,13 @@ import './globals.css';
 import { NikeHeader } from '@/components/nike/NikeHeader';
 
 export const metadata: Metadata = {
-  title: 'Ateliê Têxtil | Produtos Sob Medida & Customizáveis (By You)',
-  description: 'E-commerce têxtil com personalização em tempo real e controle de estoque de matéria-prima.',
+  title: 'Bags House | Nécessaires Personalizadas & Bolsas Sob Medida',
+  description: 'Bags House - Nécessaires e bolsas personalizadas em tempo real com controle de estoque e acabamento premium.',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

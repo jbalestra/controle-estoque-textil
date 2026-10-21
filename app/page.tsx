@@ -62,18 +62,18 @@ export default function NikeStorefront() {
       <main className="mx-auto max-w-[1536px] px-6 py-6 lg:px-12">
         {/* BREADCRUMB */}
         <nav className="flex text-xs font-semibold text-[#707072] space-x-1.5 mb-2">
-          <span className="hover:text-black cursor-pointer">Página Inicial</span>
+          <span className="hover:text-black cursor-pointer">Bags House</span>
           <span>/</span>
           <span className="hover:text-black cursor-pointer">Coleção 2026</span>
           <span>/</span>
-          <span className="text-black">Bolsas, Acessórios & Sob Medida</span>
+          <span className="text-black">Nécessaires & Bolsas Personalizadas</span>
         </nav>
 
         {/* TÍTULO DA CATEGORIA & CONTROLES SUPERIORES */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-3 border-b border-slate-100">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-black lg:text-3xl">
-              Coleção de Bolsas & Peças Sob Medida ({filtered.length})
+              Bags House • Coleção de Nécessaires & Bolsas ({filtered.length})
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               Estoque total atualizado: <span className="font-bold text-emerald-600">{totalInStock} unidades</span> disponíveis para entrega imediata.
@@ -179,21 +179,24 @@ export default function NikeStorefront() {
           )}
 
             {/* BANNER INFORMATIVO BY YOU AO FINAL DA PÁGINA */}
-            <div className="mt-16 rounded-3xl bg-[#f5f5f5] p-8 md:p-12 text-center flex flex-col items-center">
-              <span className="text-xs font-black tracking-widest uppercase text-slate-500">
-                ATELIÊ & BOLSAS SOB MEDIDA • ARTESANAL
+            <div className="mt-16 rounded-3xl bg-[#0d0d0f] p-8 md:p-12 text-center flex flex-col items-center border border-amber-500/20 shadow-2xl relative overflow-hidden">
+              <div className="mb-4 h-16 w-16 overflow-hidden rounded-2xl border border-amber-500/40 bg-black shadow-lg">
+                <img src="/logo.png" alt="Bags House" className="h-full w-full object-cover" />
+              </div>
+              <span className="text-xs font-black tracking-widest uppercase text-amber-400">
+                BAGS HOUSE • NÉCESSAIRES PERSONALIZADAS & SOB MEDIDA
               </span>
-              <h3 className="mt-2 text-3xl font-black text-black tracking-tight max-w-xl">
-                Bolsas e acessórios com pronta entrega e personalização exclusiva.
+              <h3 className="mt-2 text-2xl md:text-3xl font-black text-white tracking-tight max-w-xl">
+                Nécessaires e bolsas com monogramas e personalização exclusiva em tempo real.
               </h3>
-              <p className="mt-3 text-sm text-slate-600 max-w-lg">
-                Selecione o modelo desejado, consulte a quantidade em estoque em tempo real e personalize acabamentos e monogramas.
+              <p className="mt-3 text-sm text-slate-400 max-w-lg">
+                Selecione o modelo desejado, consulte a quantidade em estoque em tempo real e personalize acabamentos, tecidos e bordados.
               </p>
               <a
                 href="/customize/bolsa-tote-canvas"
-                className="mt-6 rounded-full bg-black px-7 py-3 text-xs font-bold text-white hover:bg-slate-800 transition-transform active:scale-95"
+                className="mt-6 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-3.5 text-xs font-bold text-black hover:from-amber-400 hover:to-amber-500 transition-all shadow-lg shadow-amber-500/20 active:scale-95"
               >
-                Personalizar uma Bolsa Agora
+                Personalizar uma Peça Agora
               </a>
             </div>
           </div>
