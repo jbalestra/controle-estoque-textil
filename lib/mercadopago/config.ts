@@ -12,10 +12,8 @@ export const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET || '';
 
 // Detecta se estamos operando em Sandbox (credenciais de teste começam com TEST-)
 export const IS_SANDBOX =
-  process.env.MP_SANDBOX_MODE === 'true' ||
   MP_ACCESS_TOKEN.startsWith('TEST-') ||
-  !process.env.NODE_ENV ||
-  process.env.NODE_ENV === 'development';
+  (process.env.MP_SANDBOX_MODE === 'true' && !MP_ACCESS_TOKEN.startsWith('APP_USR-'));
 
 /**
  * Instância singleton do cliente Mercado Pago

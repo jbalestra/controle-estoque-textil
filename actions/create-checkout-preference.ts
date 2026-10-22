@@ -53,7 +53,14 @@ export async function createCheckoutPreferenceAction(
     // --------------------------------------------------------------------------
     // 2. RECÁLCULO DE PREÇOS NO SERVIDOR (PREVENÇÃO DE MANIPULAÇÃO DE PREÇO)
     // --------------------------------------------------------------------------
-    const supabase = createServerSupabaseClient();
+    const isSupabaseConfigured = Boolean(
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-project') &&
+      process.env.SUPABASE_SERVICE_ROLE_KEY &&
+      !process.env.SUPABASE_SERVICE_ROLE_KEY.includes('your-key')
+    );
+
+    const supabase = isSupabaseConfigured ? createServerSupabaseClient() : null;
     const preferenceItems: Array<{
       id: string;
       title: string;
@@ -70,38 +77,37 @@ export async function createCheckoutPreferenceAction(
       // Buscar dados oficiais do produto (Supabase com fallback para catálogo em memória)
       let productTitle = 'Produto Personalizado';
       let productPrice = 0;
-      let pictureUrl = item.snapshot_url || undefined;
+      let pictureUrl: string | undefined = undefined;
 
-      try {
-        const { data: dbProduct } = await supabase
-          .from('products')
-          .select('id, title, base_price, base_mockup_url, is_active')
-          .eq('id', item.product_id)
-          .maybeSingle();
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: dbProduct } = await supabase
+            .from('products')
+            .select('id, title, base_price, base_mockup_url, is_active')
+            .eq('id', item.product_id)
+            .maybeSingle();
 
-        if (dbProduct) {
-          productTitle = dbProduct.title;
-          productPrice = Number(dbProduct.base_price);
-          pictureUrl = pictureUrl || dbProduct.base_mockup_url;
-        } else {
-          // Fallback para catálogo mock durante testes e desenvolvimento
-          const fallbackProd = INITIAL_PRODUCTS.find(
-            (p) => p.id === item.product_id || p.slug === item.product_id
-          );
-          if (fallbackProd) {
-            productTitle = fallbackProd.title;
-            const discount = fallbackProd.discount_percentage || 0;
-            const base = Number(fallbackProd.base_price);
-            productPrice = discount > 0 ? base * (1 - discount / 100) : base;
-            pictureUrl = pictureUrl || fallbackProd.base_mockup_url;
+          if (dbProduct) {
+            productTitle = dbProduct.title;
+            productPrice = Number(dbProduct.base_price);
+            pictureUrl = dbProduct.base_mockup_url;
           }
+        } catch (e) {
+          console.warn('[Checkout] Supabase inacessível, utilizando catálogo local:', e);
         }
-      } catch (e) {
-        console.warn('[Checkout] Supabase inacessível, utilizando catálogo local:', e);
-        const fallbackProd = INITIAL_PRODUCTS.find((p) => p.id === item.product_id);
+      }
+
+      if (!productPrice) {
+        // Catálogo local padrão
+        const fallbackProd = INITIAL_PRODUCTS.find(
+          (p) => p.id === item.product_id || p.slug === item.product_id
+        );
         if (fallbackProd) {
           productTitle = fallbackProd.title;
-          productPrice = Number(fallbackProd.base_price);
+          const discount = fallbackProd.discount_percentage || 0;
+          const base = Number(fallbackProd.base_price);
+          productPrice = discount > 0 ? base * (1 - discount / 100) : base;
+          pictureUrl = fallbackProd.base_mockup_url;
         }
       }
 
@@ -124,11 +130,17 @@ export async function createCheckoutPreferenceAction(
         .filter(Boolean)
         .join(' | ');
 
+      // Apenas URLs HTTP/HTTPS públicas são aceitas pelo Mercado Pago para picture_url
+      const validPictureUrl =
+        pictureUrl && (pictureUrl.startsWith('http://') || pictureUrl.startsWith('https://'))
+          ? pictureUrl
+          : undefined;
+
       preferenceItems.push({
         id: item.product_id,
         title: productTitle,
-        description: customDescription || 'Peça sob medida de alta costura têxtil',
-        picture_url: pictureUrl,
+        description: customDescription || 'Peça sob medida Bags House',
+        picture_url: validPictureUrl,
         quantity: item.quantity,
         unit_price: roundedUnitPrice,
         currency_id: 'BRL',
@@ -145,29 +157,31 @@ export async function createCheckoutPreferenceAction(
     // --------------------------------------------------------------------------
     // 4. PERSISTÊNCIA INICIAL DO PEDIDO NO BANCO (STATUS: PENDING)
     // --------------------------------------------------------------------------
-    try {
-      const { data: dbOrder, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,
-          customer_id: customer_id || null,
-          customer_name,
-          customer_email,
-          customer_phone: customer_phone || null,
-          shipping_address,
-          total_amount: calculatedTotal,
-          status: 'pending',
-          payment_status: 'pending',
-          idempotency_key: idempotencyKey,
-        })
-        .select('id')
-        .maybeSingle();
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: dbOrder, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            order_number: orderNumber,
+            customer_id: customer_id || null,
+            customer_name,
+            customer_email,
+            customer_phone: customer_phone || null,
+            shipping_address,
+            total_amount: calculatedTotal,
+            status: 'pending',
+            payment_status: 'pending',
+            idempotency_key: idempotencyKey,
+          })
+          .select('id')
+          .maybeSingle();
 
-      if (!orderError && dbOrder?.id) {
-        orderId = dbOrder.id;
+        if (!orderError && dbOrder?.id) {
+          orderId = dbOrder.id;
+        }
+      } catch (dbErr) {
+        console.warn('[Checkout] Aviso: Registro do pedido no Supabase ignorado:', dbErr);
       }
-    } catch (dbErr) {
-      console.warn('[Checkout] Aviso: Registro do pedido no Supabase ignorado em dev offline:', dbErr);
     }
 
     // --------------------------------------------------------------------------
@@ -228,7 +242,7 @@ export async function createCheckoutPreferenceAction(
         back_urls: backUrls,
         auto_return: baseUrl.startsWith('https://') && !baseUrl.includes('localhost') ? 'approved' : undefined,
         notification_url: notificationUrl,
-        statement_descriptor: 'ATELIE TEXTIL',
+        statement_descriptor: 'BAGS HOUSE',
         external_reference: orderId,
         metadata: {
           order_id: orderId,
@@ -245,20 +259,25 @@ export async function createCheckoutPreferenceAction(
     });
 
     // Atualizar pedido com o ID da preferência do Mercado Pago
-    try {
-      await supabase
-        .from('orders')
-        .update({
-          mp_preference_id: mpResponse.id,
-        })
-        .eq('id', orderId);
-    } catch (updErr) {
-      console.warn('[Checkout] Aviso ao associar mp_preference_id:', updErr);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('orders')
+          .update({
+            mp_preference_id: mpResponse.id,
+          })
+          .eq('id', orderId);
+      } catch (updErr) {
+        console.warn('[Checkout] Aviso ao associar mp_preference_id:', updErr);
+      }
     }
 
-    // Selecionar o link correto: Sandbox Init Point se for ambiente de teste
+    // Selecionar o link correto:
+    // Se o token for de teste (TEST-), usa sandbox_init_point.
+    // Se for token oficial de produção (APP_USR-), usa init_point direto do Mercado Pago.
+    const isTestToken = MP_ACCESS_TOKEN.startsWith('TEST-');
     const selectedInitPoint =
-      IS_SANDBOX && mpResponse.sandbox_init_point
+      isTestToken && mpResponse.sandbox_init_point
         ? mpResponse.sandbox_init_point
         : mpResponse.init_point || mpResponse.sandbox_init_point;
 

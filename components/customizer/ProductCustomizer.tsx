@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Product, Fabric, TransformMatrix } from '@/types/database';
 import { OrderItemInput } from '@/lib/validations/order';
 import { useCart } from '@/lib/cart-context';
-import { CheckoutModal } from '@/components/checkout/CheckoutModal';
 
 interface ProductCustomizerProps {
   product: Product;
@@ -134,7 +133,7 @@ export const THREAD_COLORS = [
 ];
 
 export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerProps) {
-  const { addItem, openCart, totalItems } = useCart();
+  const { addItem, openCart, openCheckout, totalItems } = useCart();
   const [customQuantity, setCustomQuantity] = useState<number>(1);
 
   // Estados de customização de texto
@@ -163,9 +162,8 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   const [artworkPreviewUrl, setArtworkPreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Feedback de Sucesso e Checkout Seguro
+  // Feedback de Sucesso
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
 
   // Referência do Canvas
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -581,7 +579,9 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   };
 
   const handleDirectMercadoPagoCheckout = () => {
-    setIsCheckoutModalOpen(true);
+    handleAddToCart();
+    setIsSuccessModalOpen(false);
+    openCheckout();
   };
 
   // Filtragem de fontes por categoria
@@ -1188,9 +1188,9 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                 type="button"
                 onClick={() => {
                   setIsSuccessModalOpen(false);
-                  setIsCheckoutModalOpen(true);
+                  openCheckout();
                 }}
-                className="w-full rounded-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 py-3 text-xs font-black uppercase tracking-wider text-black shadow-md shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 active:scale-98 transition-all flex items-center justify-center gap-2"
+                className="w-full rounded-full bg-gradient-to-r from-sky-600 via-sky-500 to-sky-600 py-3 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-sky-600/25 hover:from-sky-500 hover:to-sky-400 active:scale-98 transition-all flex items-center justify-center gap-2"
               >
                 <span>💳 Pagar Agora com Mercado Pago</span>
               </button>
@@ -1218,20 +1218,6 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
           </div>
         </div>
       )}
-
-      {/* ======================================================== */}
-      {/* MODAL DE CHECKOUT SEGURO MERCADO PAGO */}
-      {/* ======================================================== */}
-      <CheckoutModal
-        isOpen={isCheckoutModalOpen}
-        onClose={() => setIsCheckoutModalOpen(false)}
-        product={product}
-        customText={customText}
-        fontId={selectedFont}
-        textColor={textColor}
-        unitPrice={unitPrice}
-        canvasSnapshotUrl={canvasRef.current ? canvasRef.current.toDataURL('image/png') : undefined}
-      />
     </div>
   );
 }

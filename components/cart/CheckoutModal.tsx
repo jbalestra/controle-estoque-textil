@@ -35,11 +35,6 @@ export function CheckoutModal() {
 
   // Pagamento
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [installments, setInstallments] = useState('1');
 
   // Estado de finalização / sucesso
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,7 +105,7 @@ export function CheckoutModal() {
     setIsSubmitting(true);
 
     try {
-      // 1. Tentar gerar preferência de pagamento oficial no Mercado Pago Checkout Pro
+      // 1. Gerar preferência oficial de pagamento no Mercado Pago Checkout Pro
       const preferenceResult = await createCheckoutPreferenceAction({
         customer_name: customerName,
         customer_email: customerEmail,
@@ -132,7 +127,12 @@ export function CheckoutModal() {
           custom_text: it.customization?.customText || null,
           font_id: it.customization?.fontName || null,
           text_color: it.customization?.textColor || null,
-          snapshot_url: it.customization?.previewSnapshotUrl || it.imageUrl || null,
+          snapshot_url:
+            it.customization?.previewSnapshotUrl?.startsWith('http')
+              ? it.customization.previewSnapshotUrl
+              : it.imageUrl?.startsWith('http')
+              ? it.imageUrl
+              : null,
         })),
       });
 
@@ -153,12 +153,20 @@ export function CheckoutModal() {
           paymentMethod,
         });
 
-        // Redirecionamento seguro para o Mercado Pago (Pix / Cartão / Boleto)
+        // Redirecionamento seguro para a página oficial do Mercado Pago (Pix / Cartão / Boleto)
         window.location.href = preferenceResult.initPoint;
         return;
       }
 
-      // 2. Fallback de contingência caso Mercado Pago esteja sem credenciais configuradas localmente
+      if (!preferenceResult.success) {
+        setFormError(
+          preferenceResult.error ||
+            'Não foi possível conectar com o Mercado Pago. Verifique os dados ou tente novamente em instantes.'
+        );
+        return;
+      }
+
+      // Fallback em caso de ausência de link de redirecionamento
       const order = completeOrder({
         customerName,
         customerEmail,
@@ -177,8 +185,8 @@ export function CheckoutModal() {
 
       setCompletedOrder(order);
     } catch (err) {
-      console.error(err);
-      setFormError('Ocorreu um erro ao processar seu pedido. Tente novamente.');
+      console.error('[Checkout] Erro ao processar:', err);
+      setFormError('Ocorreu um erro ao conectar ao Mercado Pago. Tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -363,15 +371,23 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
             {/* CABEÇALHO DO MODAL */}
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/50">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-amber-400 font-black shadow-md">
-                  🛍️
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-500 text-white font-black shadow-md shadow-sky-500/20">
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
                 </div>
                 <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-0.5 text-[10px] font-black text-sky-800 border border-sky-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
+                      Mercado Pago Checkout Pro • 100% Protegido
+                    </span>
+                  </div>
                   <h3 className="text-lg font-black text-slate-900 tracking-tight">
                     Finalizar Compra ({totalItems} {totalItems === 1 ? 'item' : 'itens'})
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Compra simplificada de todos os seus itens selecionados em uma única etapa
+                    Dados de entrega e pagamento oficial via Mercado Pago
                   </p>
                 </div>
               </div>
@@ -529,12 +545,17 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                     </div>
                   </div>
 
-                  {/* 3. FORMA DE PAGAMENTO */}
+                  {/* 3. FORMA DE PAGAMENTO — MERCADO PAGO */}
                   <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 flex items-center gap-1.5">
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-black text-white text-[10px]">3</span>
-                      <span>Forma de Pagamento</span>
-                    </h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-black text-white text-[10px]">3</span>
+                        <span>Forma de Pagamento</span>
+                      </h4>
+                      <span className="text-[10px] font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
+                        Via Mercado Pago
+                      </span>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-2.5">
                       <button
@@ -553,7 +574,7 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                           <span>⚡ PIX Imediato</span>
                         </div>
                         <span className="text-[11px] text-slate-500 block mt-0.5">
-                          Aprovação instantânea
+                          QR Code dinâmico Mercado Pago
                         </span>
                         <span className="text-xs font-black text-emerald-700 block mt-1">
                           R$ {totalPix.toFixed(2).replace('.', ',')}
@@ -565,7 +586,7 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                         onClick={() => setPaymentMethod('credit_card')}
                         className={`rounded-2xl p-3 border text-left transition-all ${
                           paymentMethod === 'credit_card'
-                            ? 'border-black bg-slate-50 shadow-sm ring-1 ring-black'
+                            ? 'border-sky-600 bg-sky-50/70 shadow-sm ring-1 ring-sky-600'
                             : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
                         }`}
                       >
@@ -573,7 +594,7 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                           💳 Cartão de Crédito
                         </div>
                         <span className="text-[11px] text-slate-500 block mt-0.5">
-                          Até 6x sem juros
+                          Até 12x (todas as bandeiras)
                         </span>
                         <span className="text-xs font-black text-slate-900 block mt-1">
                           R$ {totalCard.toFixed(2).replace('.', ',')}
@@ -581,57 +602,28 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                       </button>
                     </div>
 
-                    {paymentMethod === 'credit_card' && (
-                      <div className="mt-3 rounded-2xl bg-slate-50 p-3 border border-slate-200 space-y-2">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Número do Cartão</label>
-                          <input
-                            type="text"
-                            placeholder="0000 0000 0000 0000"
-                            value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value)}
-                            className="w-full rounded-xl border border-slate-300 p-2 text-xs bg-white"
-                          />
+                    {/* CAIXA INFORMATIVA OFICIAL DO MERCADO PAGO */}
+                    <div className="mt-3 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/40 p-3.5 border border-sky-200/80 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-600 text-white text-[11px] font-black">
+                          ✓
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Validade</label>
-                            <input
-                              type="text"
-                              placeholder="MM/AA"
-                              value={cardExpiry}
-                              onChange={(e) => setCardExpiry(e.target.value)}
-                              className="w-full rounded-xl border border-slate-300 p-2 text-xs bg-white"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">CVV</label>
-                            <input
-                              type="text"
-                              placeholder="123"
-                              value={cardCvv}
-                              onChange={(e) => setCardCvv(e.target.value)}
-                              className="w-full rounded-xl border border-slate-300 p-2 text-xs bg-white"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Parcelamento</label>
-                          <select
-                            value={installments}
-                            onChange={(e) => setInstallments(e.target.value)}
-                            className="w-full rounded-xl border border-slate-300 p-2 text-xs bg-white font-bold"
-                          >
-                            <option value="1">1x de R$ {totalCard.toFixed(2).replace('.', ',')} (à vista)</option>
-                            <option value="2">2x de R$ {(totalCard / 2).toFixed(2).replace('.', ',')} sem juros</option>
-                            <option value="3">3x de R$ {(totalCard / 3).toFixed(2).replace('.', ',')} sem juros</option>
-                            <option value="4">4x de R$ {(totalCard / 4).toFixed(2).replace('.', ',')} sem juros</option>
-                            <option value="5">5x de R$ {(totalCard / 5).toFixed(2).replace('.', ',')} sem juros</option>
-                            <option value="6">6x de R$ {(totalCard / 6).toFixed(2).replace('.', ',')} sem juros</option>
-                          </select>
-                        </div>
+                        <span className="text-xs font-black text-sky-950">
+                          Ambiente Oficial do Mercado Pago
+                        </span>
                       </div>
-                    )}
+                      <p className="text-[11px] leading-relaxed text-sky-900/80">
+                        Ao clicar em pagar, você será direcionado à página oficial e segura do <strong>Mercado Pago</strong> com proteção integral ao comprador e antifraude de ponta a ponta.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[10px] font-bold text-slate-600">
+                        <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">⚡ Pix Instantâneo</span>
+                        <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">💳 Visa</span>
+                        <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">💳 Mastercard</span>
+                        <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">💳 Elo</span>
+                        <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">💳 Hipercard</span>
+                        <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">📄 Boleto</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -704,25 +696,29 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                     </div>
                   </div>
 
-                  {/* BOTÃO CONFIRMAR */}
+                  {/* BOTÃO CONFIRMAR MERCADO PAGO */}
                   <div className="mt-5">
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full rounded-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 py-4 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 active:scale-98 transition-all flex items-center justify-center gap-2"
+                      className="w-full rounded-full bg-gradient-to-r from-sky-600 via-sky-500 to-sky-600 py-4 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-sky-600/25 hover:from-sky-500 hover:to-sky-400 active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? (
-                        <span>Processando Pedido...</span>
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          <span>Conectando ao Mercado Pago...</span>
+                        </>
                       ) : (
                         <>
-                          <span>Confirmar Compra ({totalItems} {totalItems === 1 ? 'Peça' : 'Peças'})</span>
+                          <span>Pagar com Mercado Pago (R$ {finalAmount.toFixed(2).replace('.', ',')})</span>
                           <span>&rarr;</span>
                         </>
                       )}
                     </button>
 
-                    <p className="mt-2 text-center text-[10px] text-slate-400">
-                      🔒 Compra 100% segura • Garantia Bags House • Confecção sob medida
+                    <p className="mt-2 text-center text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                      <span>🔒</span>
+                      <span>Compra 100% protegida • Mercado Pago Checkout Pro</span>
                     </p>
                   </div>
                 </div>
