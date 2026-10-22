@@ -65,7 +65,7 @@ interface CartContextType {
   toggleCart: () => void;
   openCheckout: () => void;
   closeCheckout: () => void;
-  addItem: (item: Omit<CartItem, 'id' | 'addedAt'>) => void;
+  addItem: (item: Omit<CartItem, 'id' | 'addedAt'>, openCartDrawer?: boolean) => void;
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, newQuantity: number) => void;
   clearCart: () => void;
@@ -148,7 +148,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const closeCheckout = () => setIsCheckoutOpen(false);
 
   // Adicionar item ao carrinho
-  const addItem = (itemData: Omit<CartItem, 'id' | 'addedAt'>) => {
+  const addItem = (itemData: Omit<CartItem, 'id' | 'addedAt'>, openCartDrawer: boolean = true) => {
     setItems((prevItems) => {
       // Se não for customizado, tenta agrupar com produto idêntico
       if (!itemData.isCustomized) {
@@ -199,8 +199,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return [newItem, ...prevItems];
     });
 
-    // Abre a sacola automaticamente para o cliente ver o item adicionado
-    setIsCartOpen(true);
+    // Abre a sacola automaticamente apenas se solicitado (por padrão true)
+    if (openCartDrawer) {
+      setIsCartOpen(true);
+    }
   };
 
   // Remover item

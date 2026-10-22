@@ -133,7 +133,7 @@ export const THREAD_COLORS = [
 ];
 
 export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerProps) {
-  const { addItem, openCart, openCheckout, totalItems } = useCart();
+  const { addItem, openCart, closeCart, openCheckout, totalItems } = useCart();
   const [customQuantity, setCustomQuantity] = useState<number>(1);
 
   // Estados de customização de texto
@@ -537,29 +537,35 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   };
 
   const handleAddToCart = () => {
+    // Garante que a sacola lateral esteja fechada para exibir apenas o feedback de sucesso
+    closeCart();
+
     const snapshot = canvasRef.current?.toDataURL('image/png') || product.base_mockup_url;
     const numericUnitPrice = parseFloat(String(unitPrice).replace(',', '.')) || product.base_price;
 
-    addItem({
-      productId: product.id,
-      productTitle: product.title,
-      productSlug: product.slug,
-      categoryLabel: 'Nécessaires & Bolsas Personalizadas',
-      basePrice: product.base_price,
-      unitPrice: numericUnitPrice,
-      quantity: customQuantity,
-      maxStock: product.stock_quantity,
-      imageUrl: product.base_mockup_url,
-      isCustomized: true,
-      customization: {
-        customText: customText.trim() || undefined,
-        fontName: selectedFont,
-        textColor: textColor,
-        textColorName: THREAD_COLORS.find((c) => c.hex === textColor)?.name || textColor,
-        artworkPreviewUrl: artworkPreviewUrl || undefined,
-        previewSnapshotUrl: snapshot,
+    addItem(
+      {
+        productId: product.id,
+        productTitle: product.title,
+        productSlug: product.slug,
+        categoryLabel: 'Nécessaires & Bolsas Personalizadas',
+        basePrice: product.base_price,
+        unitPrice: numericUnitPrice,
+        quantity: customQuantity,
+        maxStock: product.stock_quantity,
+        imageUrl: product.base_mockup_url,
+        isCustomized: true,
+        customization: {
+          customText: customText.trim() || undefined,
+          fontName: selectedFont,
+          textColor: textColor,
+          textColorName: THREAD_COLORS.find((c) => c.hex === textColor)?.name || textColor,
+          artworkPreviewUrl: artworkPreviewUrl || undefined,
+          previewSnapshotUrl: snapshot,
+        },
       },
-    });
+      false // false = não abre a gaveta da sacola lateral automaticamente
+    );
 
     if (onAddToCart) {
       onAddToCart(
@@ -1124,8 +1130,22 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
       {/* MODAL DE SUCESSO AO ADICIONAR À SACOLA */}
       {/* ======================================================== */}
       {isSuccessModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsSuccessModalOpen(false);
+          }}
+        >
           <div className="relative w-full max-w-md rounded-3xl bg-white p-7 text-center shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-200">
+            {/* Botão Fechar X */}
+            <button
+              type="button"
+              onClick={() => setIsSuccessModalOpen(false)}
+              className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 text-2xl font-black mb-4 shadow-xs">
               ✓
             </div>
