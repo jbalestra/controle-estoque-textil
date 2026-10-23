@@ -42,6 +42,19 @@ export function CheckoutModal() {
   const [pixCopied, setPixCopied] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const fillTestData = () => {
+    setCustomerName('Comprador de Teste');
+    setCustomerPhone('(11) 98765-4321');
+    setCustomerEmail('comprador.sandbox@gmail.com');
+    setCep('01310100');
+    setStreet('Avenida Paulista');
+    setNumber('1000');
+    setComplement('Apto 42');
+    setNeighborhood('Bela Vista');
+    setCity('São Paulo');
+    setState('SP');
+  };
+
   if (!isCheckoutOpen) return null;
 
   // Busca rápida de CEP no ViaCEP
@@ -415,10 +428,20 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                 <div className="lg:col-span-7 space-y-5">
                   {/* 1. SEUS DADOS */}
                   <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 flex items-center gap-1.5">
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-black text-white text-[10px]">1</span>
-                      <span>Seus Dados de Contato</span>
-                    </h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-black text-white text-[10px]">1</span>
+                        <span>Seus Dados de Contato</span>
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={fillTestData}
+                        className="text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 transition-colors"
+                        title="Preencher com dados fictícios para teste rápido"
+                      >
+                        🧪 Preencher Teste
+                      </button>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div className="sm:col-span-2">
                         <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Nome Completo *</label>
@@ -622,6 +645,21 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                         <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">💳 Elo</span>
                         <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">💳 Hipercard</span>
                         <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200">📄 Boleto</span>
+                      </div>
+
+                      {/* CARTÃO DE TESTE PARA SANDBOX */}
+                      <div className="mt-2.5 rounded-xl bg-amber-50/90 p-2.5 border border-amber-200 text-[11px] text-amber-900 space-y-1">
+                        <div className="font-bold flex items-center justify-between">
+                          <span>🧪 Cartão de Teste (Aprovação Imediata)</span>
+                          <span className="text-[10px] text-amber-700 font-semibold uppercase">Modo Sandbox</span>
+                        </div>
+                        <div className="font-mono text-xs font-bold text-slate-800 bg-white p-2 rounded-lg border border-amber-200/80 flex items-center justify-between">
+                          <span className="tracking-wider">4023 9612 3456 7890</span>
+                          <span className="text-[10px] text-slate-500 font-sans">Val: 12/29 • CVV: 123</span>
+                        </div>
+                        <span className="text-[10px] text-amber-700 block">
+                          💡 Dica: Ao abrir o Mercado Pago, faça o teste em <strong>aba anônima</strong>.
+                        </span>
                       </div>
                     </div>
                   </div>

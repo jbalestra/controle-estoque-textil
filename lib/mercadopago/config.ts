@@ -10,10 +10,10 @@ export const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
 export const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || '';
 export const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET || '';
 
-// Detecta se estamos operando em Sandbox (credenciais de teste começam com TEST-)
+// Detecta se estamos operando em Sandbox (credenciais de teste TEST- ou MP_SANDBOX_MODE ativo)
 export const IS_SANDBOX =
   MP_ACCESS_TOKEN.startsWith('TEST-') ||
-  (process.env.MP_SANDBOX_MODE === 'true' && !MP_ACCESS_TOKEN.startsWith('APP_USR-'));
+  process.env.MP_SANDBOX_MODE === 'true';
 
 /**
  * Instância singleton do cliente Mercado Pago

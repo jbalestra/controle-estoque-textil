@@ -227,7 +227,13 @@ export async function createCheckoutPreferenceAction(
         items: preferenceItems,
         payer: {
           name: customer_name,
-          email: customer_email,
+          // Em modo Sandbox, só vincula e-mail se for conta oficial de teste (@testuser.com).
+          // Se for e-mail comum, não enviamos ao Mercado Pago para evitar erro de usuário inexistente no Sandbox.
+          email:
+            (process.env.MP_SANDBOX_MODE === 'true' || MP_ACCESS_TOKEN.startsWith('TEST-')) &&
+            !customer_email.includes('@testuser.com')
+              ? undefined
+              : customer_email,
           phone: customer_phone
             ? {
                 number: customer_phone.replace(/\D/g, ''),
@@ -273,11 +279,11 @@ export async function createCheckoutPreferenceAction(
     }
 
     // Selecionar o link correto:
-    // Se o token for de teste (TEST-), usa sandbox_init_point.
-    // Se for token oficial de produção (APP_USR-), usa init_point direto do Mercado Pago.
-    const isTestToken = MP_ACCESS_TOKEN.startsWith('TEST-');
+    // No Checkout Pro, as credenciais de teste também começam com APP_USR-.
+    // Portanto, se MP_SANDBOX_MODE for 'true', usamos o sandbox_init_point!
+    const useSandbox = process.env.MP_SANDBOX_MODE === 'true' || MP_ACCESS_TOKEN.startsWith('TEST-');
     const selectedInitPoint =
-      isTestToken && mpResponse.sandbox_init_point
+      useSandbox && mpResponse.sandbox_init_point
         ? mpResponse.sandbox_init_point
         : mpResponse.init_point || mpResponse.sandbox_init_point;
 
