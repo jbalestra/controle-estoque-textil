@@ -12,16 +12,69 @@ import {
   StoreProduct,
 } from '@/lib/products-store';
 import { OrderRecord } from '@/lib/cart-context';
+import { OrderRecord, KanbanOrderStage } from '@/lib/cart-context';
+
+const KANBAN_COLUMNS: {
+  id: KanbanOrderStage;
+  title: string;
+  subtitle: string;
+  icon: string;
+  badgeClass: string;
+  borderClass: string;
+  headerBgClass: string;
+}[] = [
+  {
+    id: 'pedido',
+    title: 'Pedido',
+    subtitle: 'Novos pedidos recebidos',
+    icon: '📥',
+    badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    borderClass: 'border-amber-500/30',
+    headerBgClass: 'bg-amber-950/30',
+  },
+  {
+    id: 'em_producao',
+    title: 'Em Produção',
+    subtitle: 'Corte, costura e personalização',
+    icon: '🧵',
+    badgeClass: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+    borderClass: 'border-sky-500/30',
+    headerBgClass: 'bg-sky-950/30',
+  },
+  {
+    id: 'finalizado',
+    title: 'Finalizado',
+    subtitle: 'Pronto e conferido p/ envio',
+    icon: '✨',
+    badgeClass: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
+    borderClass: 'border-violet-500/30',
+    headerBgClass: 'bg-violet-950/30',
+  },
+  {
+    id: 'enviado',
+    title: 'Enviado',
+    subtitle: 'Despachado para o cliente',
+    icon: '🚚',
+    badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    borderClass: 'border-emerald-500/30',
+    headerBgClass: 'bg-emerald-950/30',
+  },
+];
 
 export default function LojistaPortalPage() {
   const { products, isLoaded } = useProducts();
 
   // Navegação Principal do Lojista: Catálogo vs Faturamento & Comprovantes
   const [activeMainTab, setActiveMainTab] = useState<'catalogo' | 'faturamento'>('catalogo');
+  // Navegação Principal do Lojista: Catálogo vs Faturamento vs Kanban de Pedidos
+  const [activeMainTab, setActiveMainTab] = useState<'catalogo' | 'faturamento' | 'kanban'>('catalogo');
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [receiptModalOrder, setReceiptModalOrder] = useState<OrderRecord | null>(null);
   const [faturamentoFilter, setFaturamentoFilter] = useState<'all' | 'aprovado' | 'pendente'>('all');
   const [faturamentoSearch, setFaturamentoSearch] = useState('');
+  const [kanbanSearch, setKanbanSearch] = useState('');
+  const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<KanbanOrderStage | null>(null);
 
   // Estado de Autenticação do Lojista
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -105,6 +158,7 @@ export default function LojistaPortalPage() {
           shippingCost: 0,
           totalAmount: 202.42,
           status: 'aprovado',
+          kanbanStatus: 'pedido',
         };
         (initialApproved as any).paymentId = '185618265018';
         (initialApproved as any).paidAt = new Date().toISOString();
@@ -162,6 +216,45 @@ export default function LojistaPortalPage() {
     setTimeout(() => {
       setToastMessage(null);
     }, 4000);
+  };
+
+  const getOrderKanbanStage = (ord: OrderRecord): KanbanOrderStage => {
+    if (
+      ord.kanbanStatus === 'pedido' ||
+      ord.kanbanStatus === 'em_producao' ||
+      ord.kanbanStatus === 'finalizado' ||
+      ord.kanbanStatus === 'enviado'
+    ) {
+      return ord.kanbanStatus;
+    }
+    return 'pedido';
+  };
+
+  const handleUpdateKanbanStage = (orderId: string, newStage: KanbanOrderStage) => {
+    const stageLabels: Record<KanbanOrderStage, string> = {
+      pedido: 'Pedido',
+      em_producao: 'Em Produção',
+      finalizado: 'Finalizado',
+      enviado: 'Enviado',
+    };
+
+    setOrders((prev) => {
+      const updated = prev.map((o) =>
+        o.id === orderId ? { ...o, kanbanStatus: newStage } : o
+      );
+      try {
+        localStorage.setItem('bagshouse_orders_history_v1', JSON.stringify(updated));
+        window.dispatchEvent(new Event('bagshouse_order_updated'));
+      } catch (e) {
+        console.error('Erro ao salvar status do Kanban:', e);
+      }
+      return updated;
+    });
+
+    const targetOrder = orders.find((o) => o.id === orderId);
+    showToast(
+      `Pedido ${targetOrder?.orderNumber || ''} movido para "${stageLabels[newStage]}"!`
+    );
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -574,6 +667,8 @@ export default function LojistaPortalPage() {
 
         {/* NAVEGAÇÃO DE ABAS PRINCIPAIS: ESTOQUE vs FATURAMENTO & COMPROVANTES */}
         <div className="mx-auto flex max-w-7xl px-6 gap-2 border-t border-slate-800/60 pt-2 pb-0">
+        {/* NAVEGAÇÃO DE ABAS PRINCIPAIS: ESTOQUE vs FATURAMENTO vs KANBAN DE PEDIDOS */}
+        <div className="mx-auto flex max-w-7xl flex-wrap px-6 gap-2 border-t border-slate-800/60 pt-2 pb-0">
           <button
             onClick={() => setActiveMainTab('catalogo')}
             className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-bold transition-all ${
@@ -600,6 +695,21 @@ export default function LojistaPortalPage() {
             <span>📊</span>
             <span>Vendas & Faturamento (Comprovantes)</span>
             <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300 font-extrabold">
+              {orders.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveMainTab('kanban')}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-bold transition-all ${
+              activeMainTab === 'kanban'
+                ? 'border-amber-400 text-amber-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>📋</span>
+            <span>Pedidos Realizados (Kanban)</span>
+            <span className="ml-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300 font-extrabold">
               {orders.length}
             </span>
           </button>
@@ -1002,6 +1112,7 @@ export default function LojistaPortalPage() {
         </div>
       </>
     ) : (
+    ) : activeMainTab === 'faturamento' ? (
       /* ABA DE FATURAMENTO & COMPROVANTES */
       <div className="space-y-8 animate-in fade-in duration-200">
         {/* CABEÇALHO DO MÓDULO FINANCEIRO */}
@@ -1268,6 +1379,329 @@ export default function LojistaPortalPage() {
               </p>
             </div>
           )}
+        </div>
+      </div>
+    ) : (
+      /* ABA DE PEDIDOS EM FORMATO KANBAN (PEDIDO, EM PRODUÇÃO, FINALIZADO, ENVIADO) */
+      <div className="space-y-6 animate-in fade-in duration-200">
+        {/* CABEÇALHO DO KANBAN */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-5">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 font-black text-base border border-amber-500/30">
+                📋
+              </span>
+              <h2 className="text-xl font-black text-white tracking-tight">
+                Quadro Kanban de Pedidos & Produção
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Acompanhe e mova os pedidos realizados entre as etapas: <strong>Pedido</strong>, <strong>Em Produção</strong>, <strong>Finalizado</strong> e <strong>Enviado</strong>. Arraste os cartões ou use os botões de avanço rápido.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Busca no Kanban */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                placeholder="Buscar pedido, cliente ou bolsa..."
+                value={kanbanSearch}
+                onChange={(e) => setKanbanSearch(e.target.value)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-900/90 pl-8 pr-7 py-2 text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+              />
+              <span className="absolute left-2.5 top-2 text-slate-500 text-xs">🔍</span>
+              {kanbanSearch && (
+                <button
+                  onClick={() => setKanbanSearch('')}
+                  className="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={loadOrders}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all shadow-sm"
+              title="Sincronizar pedidos"
+            >
+              <span>🔄</span>
+              <span>Atualizar</span>
+            </button>
+          </div>
+        </div>
+
+        {/* RESUMO RÁPIDO DAS 4 PARTIÇÕES */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {KANBAN_COLUMNS.map((col) => {
+            const count = orders.filter((o) => getOrderKanbanStage(o) === col.id).length;
+            return (
+              <div
+                key={col.id}
+                className={`rounded-2xl border ${col.borderClass} bg-slate-900/60 p-4 flex items-center justify-between shadow-sm`}
+              >
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                    {col.title}
+                  </span>
+                  <span className="text-2xl font-black text-white mt-0.5 block">{count}</span>
+                </div>
+                <span className={`flex h-10 w-10 items-center justify-center rounded-xl border text-lg ${col.badgeClass}`}>
+                  {col.icon}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* GRID KANBAN COM AS 4 PARTIÇÕES: PEDIDO | EM PRODUÇÃO | FINALIZADO | ENVIADO */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 items-start">
+          {KANBAN_COLUMNS.map((col, colIndex) => {
+            const colOrders = orders.filter((ord) => {
+              const stageMatches = getOrderKanbanStage(ord) === col.id;
+              if (!stageMatches) return false;
+              if (!kanbanSearch.trim()) return true;
+              const q = kanbanSearch.toLowerCase();
+              const matchOrder = ord.orderNumber.toLowerCase().includes(q);
+              const matchCustomer =
+                ord.customerName.toLowerCase().includes(q) ||
+                ord.customerEmail.toLowerCase().includes(q);
+              const matchProduct = ord.items.some(
+                (it) =>
+                  it.productTitle.toLowerCase().includes(q) ||
+                  (it.customization?.customText &&
+                    it.customization.customText.toLowerCase().includes(q))
+              );
+              return matchOrder || matchCustomer || matchProduct;
+            });
+
+            const prevStage = colIndex > 0 ? KANBAN_COLUMNS[colIndex - 1].id : null;
+            const nextStage =
+              colIndex < KANBAN_COLUMNS.length - 1 ? KANBAN_COLUMNS[colIndex + 1].id : null;
+            const isDragOver = dragOverColumn === col.id;
+
+            return (
+              <div
+                key={col.id}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (dragOverColumn !== col.id) setDragOverColumn(col.id);
+                }}
+                onDragLeave={() => {
+                  if (dragOverColumn === col.id) setDragOverColumn(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverColumn(null);
+                  const orderId = e.dataTransfer.getData('text/plain') || draggedOrderId;
+                  if (orderId) {
+                    handleUpdateKanbanStage(orderId, col.id);
+                  }
+                  setDraggedOrderId(null);
+                }}
+                className={`flex flex-col rounded-2xl border transition-all min-h-[540px] max-h-[82vh] ${
+                  isDragOver
+                    ? 'border-amber-400 bg-slate-800/80 ring-2 ring-amber-400/30'
+                    : 'border-slate-800 bg-slate-900/50'
+                } shadow-xl overflow-hidden`}
+              >
+                {/* CABEÇALHO DA COLUNA KANBAN */}
+                <div className={`border-b border-slate-800 p-4 ${col.headerBgClass}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{col.icon}</span>
+                      <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                        {col.title}
+                      </h3>
+                    </div>
+                    <span
+                      className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${col.badgeClass}`}
+                    >
+                      {colOrders.length}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">{col.subtitle}</p>
+                </div>
+
+                {/* LISTA DE CARTÕES DA COLUNA */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                  {colOrders.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-48 rounded-xl border border-dashed border-slate-800/80 p-4 text-center text-slate-500">
+                      <span className="text-2xl opacity-50 mb-1">{col.icon}</span>
+                      <span className="text-xs font-semibold text-slate-400">
+                        Nenhum pedido em &ldquo;{col.title}&rdquo;
+                      </span>
+                      <span className="text-[10px] text-slate-500 mt-0.5">
+                        Arraste um pedido para cá ou altere o status no cartão.
+                      </span>
+                    </div>
+                  ) : (
+                    colOrders.map((ord) => {
+                      const isPaid = ord.status === 'aprovado';
+                      const dateStr = new Date(ord.createdAt).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      });
+
+                      return (
+                        <div
+                          key={ord.id}
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggedOrderId(ord.id);
+                            e.dataTransfer.setData('text/plain', ord.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedOrderId(null);
+                            setDragOverColumn(null);
+                          }}
+                          className={`group rounded-2xl border border-slate-700/80 bg-slate-900 p-3.5 shadow-md transition-all hover:border-slate-500 cursor-grab active:cursor-grabbing ${
+                            draggedOrderId === ord.id ? 'opacity-50 scale-95' : ''
+                          }`}
+                        >
+                          {/* TOPO DO CARTÃO: NÚMERO DO PEDIDO + DATA + STATUS PAGAMENTO */}
+                          <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-2.5">
+                            <div>
+                              <span className="font-mono text-xs font-black text-white block">
+                                {ord.orderNumber}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                🕒 {dateStr}
+                              </span>
+                            </div>
+
+                            {isPaid ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black text-emerald-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                Pago
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-black text-amber-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                Aguardando
+                              </span>
+                            )}
+                          </div>
+
+                          {/* DADOS DO CLIENTE E ENTREGA */}
+                          <div className="mt-2.5 text-xs">
+                            <div className="font-bold text-slate-100 truncate">
+                              👤 {ord.customerName}
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 mt-0.5">
+                              <span>{ord.customerPhone || ord.customerEmail}</span>
+                              {ord.shippingAddress?.city && (
+                                <span className="text-[10px] text-slate-400 font-semibold">
+                                  📍 {ord.shippingAddress.city}/{ord.shippingAddress.state}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* LISTA DE PRODUTOS DO PEDIDO */}
+                          <div className="mt-3 space-y-2">
+                            {ord.items.map((item, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-start gap-2.5 rounded-xl bg-slate-950/80 border border-slate-800/90 p-2"
+                              >
+                                <img
+                                  src={
+                                    item.customization?.previewSnapshotUrl ||
+                                    item.imageUrl ||
+                                    '/logo.png'
+                                  }
+                                  alt={item.productTitle}
+                                  className="h-11 w-11 rounded-lg object-cover border border-slate-700 bg-slate-800 shrink-0"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[11px] font-bold text-white leading-tight line-clamp-2">
+                                    <span className="text-amber-400 mr-1">{item.quantity}x</span>
+                                    {item.productTitle}
+                                  </div>
+
+                                  {item.isCustomized && item.customization?.customText && (
+                                    <div className="mt-1 rounded-md bg-amber-500/10 border border-amber-500/20 px-1.5 py-1 text-[10px] text-amber-300">
+                                      <div className="font-bold truncate">
+                                        ✍️ &ldquo;{item.customization.customText}&rdquo;
+                                      </div>
+                                      {item.customization.fontName && (
+                                        <div className="text-[9px] text-slate-400 truncate">
+                                          Fonte: {item.customization.fontName}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* VALOR TOTAL E BOTÃO DO COMPROVANTE */}
+                          <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2.5 text-xs">
+                            <div>
+                              <span className="text-[10px] text-slate-400 block">Total do Pedido</span>
+                              <span className="font-mono text-sm font-black text-emerald-400">
+                                R$ {ord.totalAmount.toFixed(2).replace('.', ',')}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setReceiptModalOrder(ord)}
+                              className="rounded-lg border border-slate-700 bg-slate-800/90 px-2.5 py-1 text-[11px] font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+                              title="Ver detalhes completos e comprovante"
+                            >
+                              📄 Detalhes
+                            </button>
+                          </div>
+
+                          {/* CONTROLES DE TRANSIÇÃO DE ETAPA DO KANBAN */}
+                          <div className="mt-3 flex items-center justify-between gap-1.5 pt-2 border-t border-slate-800/80">
+                            <button
+                              type="button"
+                              disabled={!prevStage}
+                              onClick={() => prevStage && handleUpdateKanbanStage(ord.id, prevStage)}
+                              className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-bold text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+                              title="Voltar etapa anterior"
+                            >
+                              &larr;
+                            </button>
+
+                            <select
+                              value={getOrderKanbanStage(ord)}
+                              onChange={(e) =>
+                                handleUpdateKanbanStage(ord.id, e.target.value as KanbanOrderStage)
+                              }
+                              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-bold text-white focus:border-amber-400 focus:outline-none cursor-pointer text-center"
+                            >
+                              <option value="pedido">📥 Pedido</option>
+                              <option value="em_producao">🧵 Em Produção</option>
+                              <option value="finalizado">✨ Finalizado</option>
+                              <option value="enviado">🚚 Enviado</option>
+                            </select>
+
+                            <button
+                              type="button"
+                              disabled={!nextStage}
+                              onClick={() => nextStage && handleUpdateKanbanStage(ord.id, nextStage)}
+                              className="rounded-lg bg-amber-500/20 border border-amber-500/40 px-2.5 py-1 text-[11px] font-black text-amber-300 hover:bg-amber-500 hover:text-slate-950 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+                              title="Avançar para próxima etapa"
+                            >
+                              Avançar &rarr;
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     )}

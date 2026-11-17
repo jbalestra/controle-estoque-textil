@@ -101,6 +101,7 @@ function FeedbackContent() {
           shippingCost: 0,
           totalAmount: 202.42,
           status: isSuccess ? 'aprovado' : isPending ? 'pendente' : 'pendente',
+          kanbanStatus: 'pedido',
         };
 
         (newRecord as any).paymentId = paymentId;

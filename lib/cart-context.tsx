@@ -29,6 +29,8 @@ export interface CartItem {
   addedAt: number;
 }
 
+export type KanbanOrderStage = 'pedido' | 'em_producao' | 'finalizado' | 'enviado';
+
 export interface OrderRecord {
   id: string;
   orderNumber: string;
@@ -52,6 +54,7 @@ export interface OrderRecord {
   shippingCost: number;
   totalAmount: number;
   status: 'pendente' | 'aprovado' | 'em_producao';
+  kanbanStatus?: KanbanOrderStage;
 }
 
 interface CartContextType {
@@ -338,6 +341,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       shippingCost: 0, // Frete grátis ou promocional
       totalAmount: Number(finalAmount.toFixed(2)),
       status: 'pendente',
+      kanbanStatus: 'pedido',
     };
 
     // 1. Salvar no histórico de pedidos do localStorage
