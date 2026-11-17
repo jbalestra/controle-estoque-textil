@@ -177,19 +177,6 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   const unitPrice = finalPriceNum.toFixed(2);
   const originalPriceFormatted = basePriceNum.toFixed(2);
 
-  // Carregar Google Fonts no documento caso ainda não estejam
-  useEffect(() => {
-    const linkId = 'google-custom-fonts-bundle';
-    if (!document.getElementById(linkId)) {
-      const link = document.createElement('link');
-      link.id = linkId;
-      link.rel = 'stylesheet';
-      link.href =
-        'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@600&family=Cinzel:wght@600;700&family=Cormorant+Garamond:wght@600&family=Dancing+Script:wght@600&family=Great+Vibes&family=Inter:wght@500;700&family=Montserrat:wght@500;700&family=Oswald:wght@500;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap';
-      document.head.appendChild(link);
-    }
-  }, []);
-
   // Garante que o arraste seja finalizado caso o usuário solte fora do canvas
   useEffect(() => {
     const handleGlobalRelease = () => {

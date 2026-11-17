@@ -258,7 +258,12 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto overscroll-contain font-sans"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Finalizar Compra"
+    >
       <div
         className="relative w-full max-w-3xl my-8 rounded-3xl bg-white shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
@@ -418,7 +423,11 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
             {/* CORPO DO FORMULÁRIO COM DUAS COLUNAS */}
             <form onSubmit={handleSubmit} className="p-6">
               {formError && (
-                <div className="mb-4 rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700 border border-rose-200">
+                <div
+                  role="alert"
+                  aria-live="polite"
+                  className="mb-4 rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700 border border-rose-200"
+                >
                   ⚠️ {formError}
                 </div>
               )}
@@ -744,12 +753,12 @@ Gostaria de confirmar a produção e envio do meu pedido! ✨`;
                       {isSubmitting ? (
                         <>
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                          <span>Conectando ao Mercado Pago...</span>
+                          <span>Conectando ao Mercado Pago…</span>
                         </>
                       ) : (
                         <>
-                          <span>Pagar com Mercado Pago (R$ {finalAmount.toFixed(2).replace('.', ',')})</span>
-                          <span>&rarr;</span>
+                          <span className="tabular-nums">Pagar com Mercado Pago (R$ {finalAmount.toFixed(2).replace('.', ',')})</span>
+                          <span aria-hidden="true">&rarr;</span>
                         </>
                       )}
                     </button>

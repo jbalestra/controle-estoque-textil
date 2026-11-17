@@ -1,9 +1,13 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { NikeHeader } from '@/components/nike/NikeHeader';
 import { CartProvider } from '@/lib/cart-context';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { CheckoutModal } from '@/components/cart/CheckoutModal';
+
+export const viewport: Viewport = {
+  themeColor: '#ffffff',
+};
 
 export const metadata: Metadata = {
   title: 'Bags House | Nécessaires Personalizadas & Bolsas Sob Medida',
@@ -31,6 +35,12 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased min-h-screen bg-white text-black selection:bg-black selection:text-white">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-black focus:px-4 focus:py-2 focus:text-xs focus:font-bold focus:text-amber-400 focus:shadow-lg"
+        >
+          Pular para o conteúdo principal
+        </a>
         <CartProvider>
           <NikeHeader />
           {children}

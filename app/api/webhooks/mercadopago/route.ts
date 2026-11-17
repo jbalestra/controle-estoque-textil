@@ -140,10 +140,14 @@ export async function POST(req: NextRequest) {
       if (currentOrder) {
         // Idempotência: não reprocessar se já pago
         if (currentOrder.payment_status !== 'paid' && mpStatus === 'approved') {
-          // Anti-tampering: validar se o valor pago é compatível
-          if (paidAmount && paidAmount < currentOrder.total_amount) {
+          // Anti-tampering (OWASP A06/A10 Fail-Closed): bloquear aprovação se o valor pago for inferior ao total do pedido
+          if (typeof paidAmount === 'number' && paidAmount < Number(currentOrder.total_amount) - 0.05) {
             console.error(
-              `[ALERTA DE SEGURANÇA] Valor pago (R$ ${paidAmount}) menor que total do pedido (R$ ${currentOrder.total_amount})!`
+              `[ALERTA DE SEGURANÇA] Tentativa de pagamento parcial/adulterado bloqueada! Pago: R$ ${paidAmount} | Pedido: R$ ${currentOrder.total_amount}`
+            );
+            return NextResponse.json(
+              { error: 'Divergência de valor detectada' },
+              { status: 400 }
             );
           }
 
@@ -185,9 +189,8 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Erro interno';
     console.error('[Mercado Pago Webhook] Falha crítica:', error);
-    // Retorna 500 para o Mercado Pago tentar novamente em caso de falha de conexão temporária
-    return NextResponse.json({ error: message }, { status: 500 });
+    // OWASP A10: Não expor detalhes internos ou stack traces na resposta HTTP externa
+    return NextResponse.json({ error: 'Erro interno ao processar notificação' }, { status: 500 });
   }
 }

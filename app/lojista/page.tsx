@@ -11,7 +11,6 @@ import {
   deleteStoreProduct,
   StoreProduct,
 } from '@/lib/products-store';
-import { OrderRecord } from '@/lib/cart-context';
 import { OrderRecord, KanbanOrderStage } from '@/lib/cart-context';
 
 const KANBAN_COLUMNS: {
@@ -64,8 +63,6 @@ const KANBAN_COLUMNS: {
 export default function LojistaPortalPage() {
   const { products, isLoaded } = useProducts();
 
-  // Navegação Principal do Lojista: Catálogo vs Faturamento & Comprovantes
-  const [activeMainTab, setActiveMainTab] = useState<'catalogo' | 'faturamento'>('catalogo');
   // Navegação Principal do Lojista: Catálogo vs Faturamento vs Kanban de Pedidos
   const [activeMainTab, setActiveMainTab] = useState<'catalogo' | 'faturamento' | 'kanban'>('catalogo');
   const [orders, setOrders] = useState<OrderRecord[]>([]);
@@ -665,8 +662,6 @@ export default function LojistaPortalPage() {
           </div>
         </div>
 
-        {/* NAVEGAÇÃO DE ABAS PRINCIPAIS: ESTOQUE vs FATURAMENTO & COMPROVANTES */}
-        <div className="mx-auto flex max-w-7xl px-6 gap-2 border-t border-slate-800/60 pt-2 pb-0">
         {/* NAVEGAÇÃO DE ABAS PRINCIPAIS: ESTOQUE vs FATURAMENTO vs KANBAN DE PEDIDOS */}
         <div className="mx-auto flex max-w-7xl flex-wrap px-6 gap-2 border-t border-slate-800/60 pt-2 pb-0">
           <button
@@ -1111,7 +1106,6 @@ export default function LojistaPortalPage() {
           )}
         </div>
       </>
-    ) : (
     ) : activeMainTab === 'faturamento' ? (
       /* ABA DE FATURAMENTO & COMPROVANTES */
       <div className="space-y-8 animate-in fade-in duration-200">

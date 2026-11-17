@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-// @ts-ignore
 import { usePathname } from 'next/navigation';
 
 import { useCart } from '@/lib/cart-context';
@@ -48,6 +47,8 @@ export function NikeHeader() {
               <img
                 src="/logo.png"
                 alt="Logo Bags House"
+                width={48}
+                height={48}
                 className="h-full w-full object-cover"
               />
             </div>
@@ -70,15 +71,18 @@ export function NikeHeader() {
           <div className="flex items-center gap-3">
             {/* Input de Busca */}
             <div className="relative hidden sm:block">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400" aria-hidden="true">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </span>
               <input
-                type="text"
-                placeholder="Buscar nécessaires, bolsas..."
-                className="w-44 lg:w-56 rounded-full bg-[#f5f5f5] py-2 pl-9 pr-4 text-xs text-black placeholder-[#707072] focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
+                type="search"
+                name="q"
+                autoComplete="off"
+                aria-label="Buscar nécessaires e bolsas no catálogo"
+                placeholder="Buscar nécessaires, bolsas…"
+                className="w-44 lg:w-56 rounded-full bg-[#f5f5f5] py-2 pl-9 pr-4 text-xs text-black placeholder-[#707072] focus:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 transition-colors"
               />
             </div>
 
@@ -88,7 +92,7 @@ export function NikeHeader() {
               className="p-2 rounded-full hover:bg-slate-100 text-black transition-colors"
               aria-label="Favoritos"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>
@@ -97,15 +101,18 @@ export function NikeHeader() {
             <button
               type="button"
               onClick={openCart}
-              className="relative p-2 rounded-full hover:bg-slate-100 text-black transition-all group active:scale-95"
+              className="relative p-2 rounded-full hover:bg-slate-100 text-black transition-transform group active:scale-95"
               aria-label="Abrir sacola de compras"
               title="Ver sacola de compras"
             >
-              <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-black shadow-md ring-2 ring-white animate-in zoom-in-75">
+                <span
+                  aria-live="polite"
+                  className="tabular-nums absolute -top-1 -right-1 flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-black shadow-md ring-2 ring-white animate-in zoom-in-75"
+                >
                   {totalItems}
                 </span>
               )}

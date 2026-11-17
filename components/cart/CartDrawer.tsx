@@ -161,7 +161,7 @@ export function CartDrawer() {
         </div>
 
         {/* LISTA DE ITENS DO CARRINHO */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 divide-y divide-slate-100">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 divide-y divide-slate-100">
           {items.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center py-12">
               <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-50 text-amber-600 mb-4 border border-amber-200/60 shadow-inner">
@@ -195,6 +195,9 @@ export function CartDrawer() {
                     <img
                       src={item.customization?.previewSnapshotUrl || item.imageUrl}
                       alt={item.productTitle}
+                      width={96}
+                      height={96}
+                      loading="lazy"
                       className="h-full w-full object-cover object-center"
                     />
                     {item.isCustomized && (

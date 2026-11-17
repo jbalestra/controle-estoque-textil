@@ -63,11 +63,11 @@ export function verifyMercadoPagoSignature({
   xRequestId?: string | null;
   dataId?: string | null;
 }): { isValid: boolean; reason?: string } {
-  // Se não houver segredo configurado no ambiente de desenvolvimento, logar alerta
+  // Se não houver segredo configurado, permitir apenas em desenvolvimento local explícito
   if (!MP_WEBHOOK_SECRET) {
-    if (process.env.NODE_ENV === 'development' || IS_SANDBOX) {
+    if (process.env.NODE_ENV === 'development') {
       console.warn(
-        '[Mercado Pago Webhook] MP_WEBHOOK_SECRET não configurado. Em modo Sandbox/Dev, permitindo validação.'
+        '[Mercado Pago Webhook] MP_WEBHOOK_SECRET não configurado. Permitindo apenas por estar em NODE_ENV=development.'
       );
       return { isValid: true };
     }
@@ -111,11 +111,12 @@ export function verifyMercadoPagoSignature({
     hmac.update(manifest);
     const calculatedHash = hmac.digest('hex');
 
-    // 5. Comparação em tempo constante (evita Timing Attacks)
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(calculatedHash, 'utf-8'),
-      Buffer.from(v1, 'utf-8')
-    );
+    // 5. Comparação em tempo constante com verificação prévia de tamanho (evita Timing Attacks e RangeError)
+    const calcBuf = Buffer.from(calculatedHash, 'utf-8');
+    const receivedBuf = Buffer.from(v1, 'utf-8');
+    const isValid =
+      calcBuf.length === receivedBuf.length &&
+      crypto.timingSafeEqual(calcBuf, receivedBuf);
 
     return { isValid, reason: isValid ? undefined : 'Assinatura HMAC divergente' };
   } catch (error: unknown) {

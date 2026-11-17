@@ -54,10 +54,13 @@ export function NikeProductCard({ product, onOpenCustomizer }: NikeProductCardPr
   return (
     <div className="group relative flex flex-col font-sans transition-all">
       {/* Imagem do Produto com fundo neutro característico da Nike */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#f6f6f6] transition-all group-hover:bg-[#eaeaea]">
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#f6f6f6] transition-colors group-hover:bg-[#eaeaea]">
         <img
           src={product.base_mockup_url}
           alt={product.title}
+          width={600}
+          height={600}
+          loading="lazy"
           className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
         />
 
@@ -188,7 +191,7 @@ export function NikeProductCard({ product, onOpenCustomizer }: NikeProductCardPr
         )}
 
         {/* Preço estilo Nike: Preço no Pix + Preço De + % OFF */}
-        <div className="pt-1 flex items-baseline justify-between">
+        <div className="pt-1 flex items-baseline justify-between tabular-nums">
           <div className="flex items-baseline gap-2">
             <span className="text-base font-extrabold text-black">
               R$ {product.pixPrice}

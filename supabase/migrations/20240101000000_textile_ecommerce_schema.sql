@@ -160,6 +160,7 @@ CREATE OR REPLACE FUNCTION public.create_custom_order_transaction(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_order_id UUID;
@@ -339,8 +340,13 @@ BEGIN
 END;
 $$;
 
+-- Restringir execução da função SECURITY DEFINER (evitar abuso anônimo via RPC)
+REVOKE EXECUTE ON FUNCTION public.create_custom_order_transaction(UUID, TEXT, TEXT, TEXT, JSONB, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_custom_order_transaction(UUID, TEXT, TEXT, TEXT, JSONB, JSONB) TO authenticated, service_role;
+
 -- ==============================================================================
 -- POLÍTICAS DE SEGURANÇA ROW LEVEL SECURITY (RLS)
+-- Segue diretrizes supabase-postgres-best-practices: (select auth.uid()), TO role e WITH CHECK
 -- ==============================================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fabrics ENABLE ROW LEVEL SECURITY;
@@ -352,82 +358,111 @@ ALTER TABLE public.order_item_customizations ENABLE ROW LEVEL SECURITY;
 -- Regras para Perfis
 CREATE POLICY "Usuários podem ver seu próprio perfil"
 ON public.profiles FOR SELECT
-USING (auth.uid() = id);
+TO authenticated
+USING ((select auth.uid()) = id);
 
 CREATE POLICY "Usuários podem atualizar seu próprio perfil"
 ON public.profiles FOR UPDATE
-USING (auth.uid() = id);
+TO authenticated
+USING ((select auth.uid()) = id)
+WITH CHECK ((select auth.uid()) = id);
 
 -- Regras para Tecidos (Catálogo público para leitura de tecidos ativos com estoque)
 CREATE POLICY "Leitura pública de tecidos ativos com estoque"
 ON public.fabrics FOR SELECT
+TO anon, authenticated
 USING (is_active = TRUE AND available_meters > 0);
 
 CREATE POLICY "Vendedores e admins gerenciam tecidos"
 ON public.fabrics FOR ALL
+TO authenticated
 USING (
     EXISTS (
         SELECT 1 FROM public.profiles
-        WHERE profiles.id = auth.uid() AND profiles.role IN ('seller', 'admin')
+        WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
     )
 );
 
 -- Regras para Produtos
 CREATE POLICY "Leitura pública de produtos ativos"
 ON public.products FOR SELECT
+TO anon, authenticated
 USING (is_active = TRUE);
 
 CREATE POLICY "Vendedores e admins gerenciam produtos"
 ON public.products FOR ALL
+TO authenticated
 USING (
     EXISTS (
         SELECT 1 FROM public.profiles
-        WHERE profiles.id = auth.uid() AND profiles.role IN ('seller', 'admin')
+        WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
     )
 );
 
 -- Regras para Pedidos
 CREATE POLICY "Clientes visualizam seus próprios pedidos"
 ON public.orders FOR SELECT
+TO authenticated
 USING (
-    auth.uid() = customer_id
+    (select auth.uid()) = customer_id
     OR EXISTS (
         SELECT 1 FROM public.profiles
-        WHERE profiles.id = auth.uid() AND profiles.role IN ('seller', 'admin')
+        WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
     )
 );
 
 CREATE POLICY "Vendedores e admins atualizam pedidos"
 ON public.orders FOR UPDATE
+TO authenticated
 USING (
     EXISTS (
         SELECT 1 FROM public.profiles
-        WHERE profiles.id = auth.uid() AND profiles.role IN ('seller', 'admin')
+        WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
     )
 );
 
 -- Regras para Itens e Customizações
 CREATE POLICY "Acesso a itens de pedidos permitidos"
 ON public.order_items FOR SELECT
+TO authenticated
 USING (
     EXISTS (
         SELECT 1 FROM public.orders
         WHERE orders.id = order_items.order_id
-        AND (orders.customer_id = auth.uid() OR EXISTS (
-            SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('seller', 'admin')
+        AND (orders.customer_id = (select auth.uid()) OR EXISTS (
+            SELECT 1 FROM public.profiles WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
         ))
     )
 );
 
 CREATE POLICY "Acesso a customizações de pedidos permitidos"
 ON public.order_item_customizations FOR SELECT
+TO authenticated
 USING (
     EXISTS (
         SELECT 1 FROM public.order_items
         JOIN public.orders ON orders.id = order_items.order_id
         WHERE order_items.id = order_item_customizations.order_item_id
-        AND (orders.customer_id = auth.uid() OR EXISTS (
-            SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('seller', 'admin')
+        AND (orders.customer_id = (select auth.uid()) OR EXISTS (
+            SELECT 1 FROM public.profiles WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
         ))
     )
 );

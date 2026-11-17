@@ -73,28 +73,41 @@ export async function createCheckoutPreferenceAction(
 
     let calculatedTotal = 0;
 
+    // Busca em lote (elimina cascata N+1 de awaits sequenciais — vercel-react-best-practices: async-parallel)
+    const dbProductsMap = new Map<
+      string,
+      { id: string; title: string; base_price: number; base_mockup_url?: string }
+    >();
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const uniqueProductIds = Array.from(new Set(items.map((i) => i.product_id)));
+        const { data: dbProducts } = await supabase
+          .from('products')
+          .select('id, title, base_price, base_mockup_url, is_active')
+          .in('id', uniqueProductIds);
+
+        if (dbProducts) {
+          for (const prod of dbProducts) {
+            dbProductsMap.set(prod.id, prod);
+          }
+        }
+      } catch (e) {
+        console.warn('[Checkout] Supabase inacessível, utilizando catálogo local:', e);
+      }
+    }
+
     for (const item of items) {
-      // Buscar dados oficiais do produto (Supabase com fallback para catálogo em memória)
+      // Buscar dados oficiais do produto (mapa pré-carregado com fallback para catálogo em memória)
       let productTitle = 'Produto Personalizado';
       let productPrice = 0;
       let pictureUrl: string | undefined = undefined;
 
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data: dbProduct } = await supabase
-            .from('products')
-            .select('id, title, base_price, base_mockup_url, is_active')
-            .eq('id', item.product_id)
-            .maybeSingle();
-
-          if (dbProduct) {
-            productTitle = dbProduct.title;
-            productPrice = Number(dbProduct.base_price);
-            pictureUrl = dbProduct.base_mockup_url;
-          }
-        } catch (e) {
-          console.warn('[Checkout] Supabase inacessível, utilizando catálogo local:', e);
-        }
+      const dbProduct = dbProductsMap.get(item.product_id);
+      if (dbProduct) {
+        productTitle = dbProduct.title;
+        productPrice = Number(dbProduct.base_price);
+        pictureUrl = dbProduct.base_mockup_url;
       }
 
       if (!productPrice) {

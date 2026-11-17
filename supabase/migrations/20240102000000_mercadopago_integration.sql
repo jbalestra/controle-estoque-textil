@@ -39,6 +39,19 @@ CREATE TABLE IF NOT EXISTS public.payment_audit_logs (
 CREATE INDEX IF NOT EXISTS idx_payment_audit_logs_order_id ON public.payment_audit_logs(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_audit_logs_payment_id ON public.payment_audit_logs(mp_payment_id);
 
+-- Habilitar RLS obrigatório na tabela de auditoria de pagamentos (schema public exposto)
+ALTER TABLE public.payment_audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Apenas vendedores e admins visualizam logs de pagamento"
+ON public.payment_audit_logs FOR SELECT
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = (select auth.uid()) AND profiles.role IN ('seller', 'admin')
+    )
+);
+
 -- 5. PROCEDIMENTO ATÔMICO DE ATUALIZAÇÃO DE STATUS DE PAGAMENTO (IDEMPOTENTE)
 -- Garante que chamadas duplicadas do Webhook não alterem duas vezes o status
 CREATE OR REPLACE FUNCTION public.process_mp_payment_webhook(
@@ -52,6 +65,7 @@ CREATE OR REPLACE FUNCTION public.process_mp_payment_webhook(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_order RECORD;
@@ -130,3 +144,7 @@ BEGIN
     );
 END;
 $$;
+
+-- Restringir execução da RPC de Webhook exclusivamente ao backend (service_role)
+REVOKE EXECUTE ON FUNCTION public.process_mp_payment_webhook(UUID, TEXT, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.process_mp_payment_webhook(UUID, TEXT, TEXT, TEXT, TEXT, JSONB) TO service_role;

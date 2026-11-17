@@ -1,65 +1,77 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { NikeProductCard } from '@/components/nike/NikeProductCard';
-import { useProducts, StoreProduct } from '@/lib/products-store';
+import { useProducts } from '@/lib/products-store';
 
 export default function NikeStorefront() {
-  const { products, isLoaded } = useProducts();
+  const { products } = useProducts();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedStockFilter, setSelectedStockFilter] = useState<string | null>(null);
   const [selectedSort, setSelectedSort] = useState('Destaques');
 
-  // Filtragem dinâmica por abas rápidas
-  let filtered = products.filter((p) => p.is_active !== false);
+  // Filtragem e ordenação memoizadas sem mutar o array original (vercel-react-best-practices)
+  const filtered = useMemo(() => {
+    let result = products.filter((p) => p.is_active !== false);
 
-  if (selectedCategory) {
-    if (selectedCategory === 'Bolsas & Acessórios') {
-      filtered = filtered.filter(
+    if (selectedCategory) {
+      if (selectedCategory === 'Bolsas & Acessórios') {
+        result = result.filter(
+          (p) =>
+            p.categoryLabel.toLowerCase().includes('bolsa') ||
+            p.categoryLabel.toLowerCase().includes('mochila') ||
+            p.title.toLowerCase().includes('bolsa') ||
+            p.title.toLowerCase().includes('mochila')
+        );
+      } else {
+        result = result.filter(
+          (p) =>
+            p.categoryLabel.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+            p.title.toLowerCase().includes(selectedCategory.toLowerCase())
+        );
+      }
+    }
+
+    if (selectedStockFilter) {
+      if (selectedStockFilter === 'Pronta Entrega (Em Estoque)') {
+        result = result.filter((p) => p.stock_quantity > 0);
+      } else if (selectedStockFilter === 'Últimas Unidades') {
+        result = result.filter((p) => p.stock_quantity > 0 && p.stock_quantity <= 5);
+      }
+    }
+
+    const sorted = [...result];
+    if (selectedSort === 'MenorPreco') {
+      sorted.sort((a, b) => a.base_price - b.base_price);
+    } else if (selectedSort === 'MaiorPreco') {
+      sorted.sort((a, b) => b.base_price - a.base_price);
+    } else if (selectedSort === 'MaiorEstoque') {
+      sorted.sort((a, b) => b.stock_quantity - a.stock_quantity);
+    }
+    return sorted;
+  }, [products, selectedCategory, selectedStockFilter, selectedSort]);
+
+  const totalInStock = useMemo(
+    () => products.reduce((acc, p) => acc + (p.stock_quantity || 0), 0),
+    [products]
+  );
+
+  const bagProductsCount = useMemo(
+    () =>
+      products.filter(
         (p) =>
           p.categoryLabel.toLowerCase().includes('bolsa') ||
-          p.categoryLabel.toLowerCase().includes('mochila') ||
           p.title.toLowerCase().includes('bolsa') ||
-          p.title.toLowerCase().includes('mochila')
-      );
-    } else {
-      filtered = filtered.filter(
-        (p) =>
-          p.categoryLabel.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-          p.title.toLowerCase().includes(selectedCategory.toLowerCase())
-      );
-    }
-  }
-
-  if (selectedStockFilter) {
-    if (selectedStockFilter === 'Pronta Entrega (Em Estoque)') {
-      filtered = filtered.filter((p) => p.stock_quantity > 0);
-    } else if (selectedStockFilter === 'Últimas Unidades') {
-      filtered = filtered.filter((p) => p.stock_quantity > 0 && p.stock_quantity <= 5);
-    }
-  }
-
-  // Ordenação
-  if (selectedSort === 'MenorPreco') {
-    filtered.sort((a, b) => a.base_price - b.base_price);
-  } else if (selectedSort === 'MaiorPreco') {
-    filtered.sort((a, b) => b.base_price - a.base_price);
-  } else if (selectedSort === 'MaiorEstoque') {
-    filtered.sort((a, b) => b.stock_quantity - a.stock_quantity);
-  }
-
-  const totalInStock = products.reduce((acc, p) => acc + (p.stock_quantity || 0), 0);
-  const bagProductsCount = products.filter(
-    (p) =>
-      p.categoryLabel.toLowerCase().includes('bolsa') ||
-      p.title.toLowerCase().includes('bolsa') ||
-      p.categoryLabel.toLowerCase().includes('mochila')
-  ).length;
+          p.categoryLabel.toLowerCase().includes('mochila')
+      ).length,
+    [products]
+  );
 
   return (
     <div className="min-h-screen bg-white font-sans text-black">
       {/* CORPO DO CATÁLOGO ESTILO NIKE */}
-      <main className="mx-auto max-w-[1536px] px-6 py-6 lg:px-12">
+      <main id="main-content" className="mx-auto max-w-[1536px] px-6 py-6 lg:px-12">
         {/* BREADCRUMB */}
         <nav className="flex text-xs font-semibold text-[#707072] space-x-1.5 mb-2">
           <span className="hover:text-black cursor-pointer">Bags House</span>
@@ -83,11 +95,15 @@ export default function NikeStorefront() {
           <div className="flex items-center gap-4 text-xs font-bold text-black">
             {/* Ordenar Por */}
             <div className="flex items-center gap-1.5 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
-              <span className="text-slate-500">Ordenar por:</span>
+              <label htmlFor="catalog-sort" className="text-slate-500">
+                Ordenar por:
+              </label>
               <select
+                id="catalog-sort"
+                name="sort"
                 value={selectedSort}
                 onChange={(e) => setSelectedSort(e.target.value)}
-                className="bg-transparent font-bold focus:outline-none cursor-pointer"
+                className="bg-transparent text-black font-bold focus-visible:outline-none cursor-pointer"
               >
                 <option value="Destaques">Em destaque</option>
                 <option value="MaiorEstoque">Maior Estoque</option>
@@ -181,7 +197,7 @@ export default function NikeStorefront() {
             {/* BANNER INFORMATIVO BY YOU AO FINAL DA PÁGINA */}
             <div className="mt-16 rounded-3xl bg-[#0d0d0f] p-8 md:p-12 text-center flex flex-col items-center border border-amber-500/20 shadow-2xl relative overflow-hidden">
               <div className="mb-4 h-16 w-16 overflow-hidden rounded-2xl border border-amber-500/40 bg-black shadow-lg">
-                <img src="/logo.png" alt="Bags House" className="h-full w-full object-cover" />
+                <img src="/logo.png" alt="Bags House" width={64} height={64} loading="lazy" className="h-full w-full object-cover" />
               </div>
               <span className="text-xs font-black tracking-widest uppercase text-amber-400">
                 BAGS HOUSE • NÉCESSAIRES PERSONALIZADAS & SOB MEDIDA
@@ -192,12 +208,12 @@ export default function NikeStorefront() {
               <p className="mt-3 text-sm text-slate-400 max-w-lg">
                 Selecione o modelo desejado, consulte a quantidade em estoque em tempo real e personalize acabamentos, tecidos e bordados.
               </p>
-              <a
+              <Link
                 href="/customize/bolsa-tote-canvas"
-                className="mt-6 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-3.5 text-xs font-bold text-black hover:from-amber-400 hover:to-amber-500 transition-all shadow-lg shadow-amber-500/20 active:scale-95"
+                className="mt-6 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-3.5 text-xs font-bold text-black hover:from-amber-400 hover:to-amber-500 transition-colors shadow-lg shadow-amber-500/20 active:scale-95"
               >
                 Personalizar uma Peça Agora
-              </a>
+              </Link>
             </div>
           </div>
       </main>

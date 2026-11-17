@@ -3,12 +3,51 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
+  /* Design System Tokens — Bags House Ateliê (frontend-design skill) */
+  --background: #ffffff;
+  --surface-subtle: #f8fafc;
   --foreground: #0f172a;
+  --accent-gold: #d97706;
+  --accent-gold-light: #fef3c7;
+  --border-subtle: #e2e8f0;
+}
+
+@media (pointer: fine) {
+  html {
+    overscroll-behavior: none;
+  }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  text-wrap: balance;
+}
+
+/* Foco visível acessível para navegação por teclado (web-design-guidelines) */
+:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+}
+
+/* Números tabulares para preços e contadores de estoque */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Respeito estrito a prefers-reduced-motion (frontend-design & web-design-guidelines) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
