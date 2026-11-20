@@ -82,8 +82,8 @@ function FeedbackContent() {
               productId: 'prod-1',
               productTitle: 'Bolsa Tiracolo Minimalista Couro Caramelo',
               productSlug: 'bolsa-tiracolo-couro',
-              basePrice: 202.42,
-              unitPrice: 202.42,
+              basePrice: 249.9,
+              unitPrice: 249.9,
               quantity: 1,
               maxStock: 10,
               imageUrl: '/products/caramelo.jpg',
@@ -96,10 +96,10 @@ function FeedbackContent() {
               addedAt: Date.now(),
             },
           ],
-          subtotal: 202.42,
+          subtotal: 249.9,
           discountAmount: 0,
           shippingCost: 0,
-          totalAmount: 202.42,
+          totalAmount: 249.9,
           status: isSuccess ? 'aprovado' : isPending ? 'pendente' : 'pendente',
           kanbanStatus: 'pedido',
         };
@@ -203,7 +203,10 @@ function FeedbackContent() {
               <span className="inline-block rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 border border-emerald-200">
                 ● STATUS: APROVADO
               </span>
-              <span className="block text-[10px] text-slate-400 mt-1 font-mono">
+              <span
+                suppressHydrationWarning
+                className="block text-[10px] text-slate-400 mt-1 font-mono"
+              >
                 {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}
               </span>
             </div>
@@ -281,7 +284,7 @@ function FeedbackContent() {
             <div className="pt-2 flex items-center justify-between border-t border-slate-200 text-sm font-bold">
               <span className="text-slate-600">Total Pago (Faturamento Confirmado):</span>
               <span className="text-xl font-black text-emerald-600 font-mono">
-                R$ {order?.totalAmount?.toFixed(2).replace('.', ',') || '202,42'}
+                R$ {order?.totalAmount?.toFixed(2).replace('.', ',') || '249,90'}
               </span>
             </div>
           </div>

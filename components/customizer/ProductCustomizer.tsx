@@ -143,23 +143,45 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   const [textColor, setTextColor] = useState<string>(THREAD_COLORS[0].hex);
   const [fontSize, setFontSize] = useState<number>(34);
 
-  // Posição interativa da personalização na bolsa (coordenadas X, Y no Canvas 600x600)
-  const [textPosition, setTextPosition] = useState<{ x: number; y: number }>({ x: 300, y: 340 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isHoveringBox, setIsHoveringBox] = useState(false);
+  // Posições independentes para o TEXTO e para a LOGO / IMAGEM (coordenadas X, Y no Canvas 600x600)
+  const [textPosition, setTextPosition] = useState<{ x: number; y: number }>({ x: 300, y: 365 });
+  const [artworkPosition, setArtworkPosition] = useState<{ x: number; y: number }>({ x: 300, y: 245 });
+  const [activeTarget, setActiveTarget] = useState<'text' | 'artwork'>('text');
 
-  // Referência dos limites da área de personalização para hit-test de clique/arraste
+  const [draggingTarget, setDraggingTarget] = useState<'text' | 'artwork' | null>(null);
+  const [resizingTarget, setResizingTarget] = useState<'text' | 'artwork' | null>(null);
+  const [isHoveringCorner, setIsHoveringCorner] = useState(false);
+  const [isHoveringBox, setIsHoveringBox] = useState(false);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [resizeStartRef, setResizeStartRef] = useState<{
+    dist: number;
+    initialFontSize: number;
+    initialArtworkSize: number;
+  }>({ dist: 100, initialFontSize: 34, initialArtworkSize: 110 });
+  const [showGuides, setShowGuides] = useState(true);
+
+  const isDragging = draggingTarget !== null;
+  const isResizingCorner = resizingTarget !== null;
+
+  // Referências independentes dos limites do TEXTO e da LOGO para hit-test separado
   const textBoundsRef = useRef<{ x: number; y: number; width: number; height: number }>({
     x: 200,
-    y: 300,
+    y: 330,
     width: 200,
     height: 70,
   });
+  const artworkBoundsRef = useRef<{ x: number; y: number; width: number; height: number }>({
+    x: 245,
+    y: 190,
+    width: 110,
+    height: 110,
+  });
 
-  // Upload de arte / logo
+  // Upload de arte / logo + controles de tamanho e realismo da imagem
   const [artworkFile, setArtworkFile] = useState<File | null>(null);
   const [artworkPreviewUrl, setArtworkPreviewUrl] = useState<string | null>(null);
+  const [artworkSize, setArtworkSize] = useState<number>(110);
+  const [artworkBlendMultiply, setArtworkBlendMultiply] = useState<boolean>(true);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Feedback de Sucesso
@@ -168,19 +190,19 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   // Referência do Canvas
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Preço dinâmico com cálculo de desconto (definido pelo lojista)
-  const discountPercent = product.discount_percent || 0;
+  // Preço dinâmico fiel ao valor real da peça (base_price já contém o valor final de venda)
+  const discountPercent =
+    Number((product as any).discount_percentage) || product.discount_percent || 0;
   const basePriceNum = Number(product.base_price) || 0;
-  const finalPriceNum = discountPercent > 0
-    ? basePriceNum * (1 - discountPercent / 100)
-    : basePriceNum;
-  const unitPrice = finalPriceNum.toFixed(2);
-  const originalPriceFormatted = basePriceNum.toFixed(2);
+  const origPriceNum = Number((product as any).original_price) || basePriceNum;
+  const unitPrice = basePriceNum.toFixed(2);
+  const originalPriceFormatted = origPriceNum.toFixed(2);
 
-  // Garante que o arraste seja finalizado caso o usuário solte fora do canvas
+  // Garante que o arraste ou redimensionamento seja finalizado caso o usuário solte fora do canvas
   useEffect(() => {
     const handleGlobalRelease = () => {
-      setIsDragging(false);
+      setDraggingTarget(null);
+      setResizingTarget(null);
     };
     window.addEventListener('mouseup', handleGlobalRelease);
     window.addEventListener('touchend', handleGlobalRelease);
@@ -205,7 +227,7 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
     };
   };
 
-  // Processamento do Dropzone de Arquivo
+  // Processamento do Dropzone de Arquivo (converte e otimiza para Base64 PNG permanente para nunca expirar nem estourar o localStorage)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setUploadError(null);
@@ -218,9 +240,78 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
     }
 
     setArtworkFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setArtworkPreviewUrl(objectUrl);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const rawDataUrl = ev.target?.result as string;
+        if (!rawDataUrl) return;
+
+        // Redimensiona para no máximo 500px mantendo transparência (PNG) para caber com folga no localStorage
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const maxDim = 500;
+            const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+            const w = Math.max(1, Math.round(img.width * scale));
+            const h = Math.max(1, Math.round(img.height * scale));
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = w;
+            offCanvas.height = h;
+            const offCtx = offCanvas.getContext('2d');
+            if (offCtx) {
+              offCtx.clearRect(0, 0, w, h);
+              offCtx.drawImage(img, 0, 0, w, h);
+              const optimizedDataUrl = offCanvas.toDataURL('image/png');
+              setArtworkPreviewUrl(optimizedDataUrl);
+              setActiveTarget('artwork');
+              return;
+            }
+          } catch {
+            // Fallback para o DataURL bruto
+          }
+          setArtworkPreviewUrl(rawDataUrl);
+          setActiveTarget('artwork');
+      };
+      img.onerror = () => {
+        setArtworkPreviewUrl(rawDataUrl);
+        setActiveTarget('artwork');
+      };
+      img.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
   };
+
+  // Carrega personalização existente caso aberto a partir de um pedido do Kanban (/customize/[slug]?orderId=...&itemIdx=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const orderId = params.get('orderId');
+      const itemIdx = Number(params.get('itemIdx') || '0');
+      if (!orderId) return;
+
+      const rawOrders = localStorage.getItem('bagshouse_orders_history_v1');
+      if (!rawOrders) return;
+      const orders = JSON.parse(rawOrders);
+      const foundOrder = Array.isArray(orders)
+        ? orders.find((o: any) => o.id === orderId || o.orderNumber === orderId)
+        : null;
+      const foundItem = foundOrder?.items?.[itemIdx] || foundOrder?.items?.[0];
+      const cust = foundItem?.customization;
+      if (!cust) return;
+
+      if (cust.customText !== undefined) setCustomText(cust.customText);
+      if (cust.fontName) setSelectedFont(cust.fontName);
+      if (typeof cust.fontSize === 'number') setFontSize(cust.fontSize);
+      if (cust.textColor) setTextColor(cust.textColor);
+      if (cust.textPosition?.x && cust.textPosition?.y) setTextPosition(cust.textPosition);
+      if (cust.artworkPreviewUrl) setArtworkPreviewUrl(cust.artworkPreviewUrl);
+      if (typeof cust.artworkSize === 'number') setArtworkSize(cust.artworkSize);
+      if (cust.artworkPosition?.x && cust.artworkPosition?.y) setArtworkPosition(cust.artworkPosition);
+      if (typeof cust.artworkBlendMultiply === 'boolean') setArtworkBlendMultiply(cust.artworkBlendMultiply);
+    } catch (err) {
+      console.error('Erro ao carregar personalização do pedido:', err);
+    }
+  }, []);
 
   // Renderização limpa e nítida no Canvas HTML5 com área dinâmica proporcional
   const renderCanvas = useCallback(async () => {
@@ -245,9 +336,21 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
     const loadImage = (src: string): Promise<HTMLImageElement> => {
       return new Promise((resolve, reject) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        if (!src.startsWith('data:') && !src.startsWith('blob:')) {
+          img.crossOrigin = 'anonymous';
+        }
         img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Falha ao carregar imagem: ${src}`));
+        img.onerror = () => {
+          // Fallback sem crossOrigin caso o servidor externo não envie cabeçalhos CORS
+          if (img.crossOrigin) {
+            const fallbackImg = new Image();
+            fallbackImg.onload = () => resolve(fallbackImg);
+            fallbackImg.onerror = () => reject(new Error(`Falha ao carregar imagem: ${src}`));
+            fallbackImg.src = src;
+            return;
+          }
+          reject(new Error(`Falha ao carregar imagem: ${src}`));
+        };
         img.src = src;
       });
     };
@@ -282,156 +385,232 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
       }
 
       // =========================================================================
-      // 3. CÁLCULO DINÂMICO DO TAMANHO DA ÁREA COMPATÍVEL COM O TEXTO DIGITADO
-      //    (se for só um nome curto, a área é menor e compacta; se for frase, expande)
+      // 3. CÁLCULO E RENDERIZAÇÃO INDEPENDENTE DA LOGO / IMAGEM E DO TEXTO
+      //    Cada elemento possui sua própria caixa, posição (X, Y) e tamanho!
       // =========================================================================
       const activeFontObj = POPULAR_FONTS.find((f) => f.id === selectedFont) || POPULAR_FONTS[0];
       const fontName = activeFontObj.id;
 
-      // Medição exata da largura em pixels com a fonte escolhida
-      ctx.font = `${fontSize}px "${fontName}", serif`;
-      const textToMeasure = customText.trim() ? customText : 'Digite seu texto...';
-      const textMetrics = ctx.measureText(textToMeasure);
-      const measuredTextWidth = Math.ceil(textMetrics.width);
-      const measuredTextHeight = Math.ceil(fontSize * 1.05);
-
-      // Logotipo / Arte opcional
-      let artDisplayW = 0;
-      let artDisplayH = 0;
-      let artVerticalSpacing = 0;
-      if (artworkPreviewUrl) {
-        artDisplayW = Math.min(130, Math.max(70, measuredTextWidth * 0.75));
-        artDisplayH = 50;
-        artVerticalSpacing = 10;
-      }
-
-      // Padding dinâmico: compacto para nomes ("João") e espaçoso para frases longas
-      const isShortName = customText.trim().length > 0 && customText.trim().length <= 6;
-      const padX = isShortName ? 14 : 20;
-      const padY = 12;
-
-      // Largura e Altura que abraçam estritamente o conteúdo
-      const maxInnerWidth = Math.max(measuredTextWidth, artDisplayW);
-      const boxWidth = Math.max(maxInnerWidth + padX * 2, isShortName ? 70 : 110);
-      const boxHeight = measuredTextHeight + (artworkPreviewUrl ? artDisplayH + artVerticalSpacing : 0) + padY * 2;
-
-      // Coordenadas da caixa centradas na posição escolhida/arrastada
-      const boxX = Math.round(textPosition.x - boxWidth / 2);
-      const boxY = Math.round(textPosition.y - boxHeight / 2);
-
-      // Armazena bounds na ref para cálculo imediato de clique / arraste
-      textBoundsRef.current = { x: boxX, y: boxY, width: boxWidth, height: boxHeight };
-
-      // =========================================================================
-      // 4. DESENHO DA ÁREA DE PERSONALIZAÇÃO DINÂMICA
-      // =========================================================================
-      ctx.save();
-      // Glow suave durante o arraste
-      ctx.shadowColor = isDragging ? 'rgba(79, 70, 229, 0.45)' : 'rgba(79, 70, 229, 0.2)';
-      ctx.shadowBlur = isDragging ? 12 : 5;
-      ctx.strokeStyle = isDragging ? '#4338ca' : 'rgba(79, 70, 229, 0.85)';
-      ctx.setLineDash([5, 5]);
-      ctx.lineWidth = isDragging ? 2.5 : 1.6;
-
-      // Retângulo dinâmico reduzido/ajustado ao texto
-      ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
-
-      // Fundo sutil para destacar a área editável
-      ctx.fillStyle = isDragging ? 'rgba(99, 102, 241, 0.12)' : 'rgba(99, 102, 241, 0.04)';
-      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-
-      // Puxadores nos 4 cantos estilo Canva / Illustrator
-      const handleSize = 6;
-      const drawCornerHandle = (hx: number, hy: number) => {
+      // Função auxiliar para desenhar caixa guia tracejada com 4 cantos redimensionáveis
+      const drawSelectionBox = (
+        bounds: { x: number; y: number; width: number; height: number },
+        centerX: number,
+        label: string,
+        colorTheme: 'indigo' | 'amber',
+        isSelected: boolean,
+        isActiveDragOrResize: boolean
+      ) => {
         ctx.save();
+        const strokeMain =
+          colorTheme === 'amber'
+            ? isActiveDragOrResize
+              ? '#b45309'
+              : 'rgba(217, 119, 6, 0.9)'
+            : isActiveDragOrResize
+              ? '#4338ca'
+              : 'rgba(79, 70, 229, 0.85)';
+        const fillBg =
+          colorTheme === 'amber'
+            ? isActiveDragOrResize
+              ? 'rgba(245, 158, 11, 0.12)'
+              : 'rgba(245, 158, 11, 0.04)'
+            : isActiveDragOrResize
+              ? 'rgba(99, 102, 241, 0.12)'
+              : 'rgba(99, 102, 241, 0.04)';
+        const handleColor = colorTheme === 'amber' ? '#d97706' : '#4f46e5';
+
+        ctx.shadowColor =
+          colorTheme === 'amber' ? 'rgba(217, 119, 6, 0.25)' : 'rgba(79, 70, 229, 0.25)';
+        ctx.shadowBlur = isSelected ? 10 : 4;
+        ctx.strokeStyle = strokeMain;
+        ctx.setLineDash([5, 5]);
+        ctx.lineWidth = isSelected || isActiveDragOrResize ? 2.2 : 1.4;
+
+        ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        ctx.fillStyle = fillBg;
+        ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+
+        // 4 puxadores nos cantos
+        const handleSize = isSelected ? 9 : 7;
+        const drawCorner = (hx: number, hy: number) => {
+          ctx.save();
+          ctx.setLineDash([]);
+          ctx.fillStyle = isActiveDragOrResize ? handleColor : '#ffffff';
+          ctx.strokeStyle = handleColor;
+          ctx.lineWidth = 2;
+          ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+          ctx.strokeRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+          ctx.restore();
+        };
+        drawCorner(bounds.x, bounds.y);
+        drawCorner(bounds.x + bounds.width, bounds.y);
+        drawCorner(bounds.x, bounds.y + bounds.height);
+        drawCorner(bounds.x + bounds.width, bounds.y + bounds.height);
+
+        // Etiqueta superior
+        ctx.font = 'bold 9px sans-serif';
+        const badgeW = Math.max(ctx.measureText(label).width + 14, 92);
+        const badgeH = 17;
+        const badgeX = Math.round(centerX - badgeW / 2);
+
+        ctx.setLineDash([]);
+        ctx.fillStyle = handleColor;
+        ctx.fillRect(badgeX, bounds.y - badgeH - 2, badgeW, badgeH);
+
         ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#4f46e5';
-        ctx.lineWidth = 1.5;
-        ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
-        ctx.strokeRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, badgeX + badgeW / 2, bounds.y - badgeH / 2 - 2);
         ctx.restore();
       };
-      drawCornerHandle(boxX, boxY);
-      drawCornerHandle(boxX + boxWidth, boxY);
-      drawCornerHandle(boxX, boxY + boxHeight);
-      drawCornerHandle(boxX + boxWidth, boxY + boxHeight);
-
-      // Etiqueta superior adaptativa à largura da caixa
-      const badgeText = isDragging ? '✥ POSICIONANDO' : '✥ ÁREA DE PERSONALIZAÇÃO';
-      ctx.font = 'bold 9px sans-serif';
-      const badgeW = Math.min(boxWidth, Math.max(ctx.measureText(badgeText).width + 12, 100));
-      const badgeH = 17;
-
-      ctx.fillStyle = isDragging ? '#3730a3' : 'rgba(79, 70, 229, 0.95)';
-      ctx.fillRect(boxX, boxY - badgeH, badgeW, badgeH);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(badgeText, boxX + 4, boxY - badgeH / 2);
-      ctx.restore();
 
       // =========================================================================
-      // 5. LOGOTIPO / ARTE DO CLIENTE (SE ANEXADO)
+      // 4. LOGOTIPO / ARTE DO CLIENTE (CAIXA E POSIÇÃO INDEPENDENTES)
       // =========================================================================
-      let textCenterY = textPosition.y;
-
       if (artworkPreviewUrl) {
         try {
-          const artImg = await loadImage(artworkPreviewUrl);
+          const loadedArtImg = await loadImage(artworkPreviewUrl);
+          const aspect =
+            loadedArtImg.width > 0 && loadedArtImg.height > 0
+              ? loadedArtImg.height / loadedArtImg.width
+              : 1;
+          const drawW = artworkSize;
+          const drawH = Math.round(artworkSize * aspect);
+          const drawX = Math.round(artworkPosition.x - drawW / 2);
+          const drawY = Math.round(artworkPosition.y - drawH / 2);
+
+          const artPad = 10;
+          const artBounds = {
+            x: drawX - artPad,
+            y: drawY - artPad,
+            width: drawW + artPad * 2,
+            height: drawH + artPad * 2,
+          };
+          artworkBoundsRef.current = artBounds;
+
+          // Desenhar guia da Logo se showGuides estiver ativo
+          if (showGuides) {
+            const artLabel =
+              resizingTarget === 'artwork'
+                ? `⤡ LOGO (${artworkSize}px)`
+                : draggingTarget === 'artwork'
+                  ? '✥ MOVENDO LOGO'
+                  : '✥ LOGO (ARRASTE / CANTOS)';
+            drawSelectionBox(
+              artBounds,
+              artworkPosition.x,
+              artLabel,
+              'amber',
+              activeTarget === 'artwork',
+              draggingTarget === 'artwork' || resizingTarget === 'artwork'
+            );
+          }
+
+          // Desenhar a imagem da Logo na sua posição própria
           ctx.save();
-          const drawW = Math.min(boxWidth - padX * 2, 110);
-          const drawH = (artImg.height / artImg.width) * drawW;
-          const drawX = textPosition.x - drawW / 2;
-          const drawY = boxY + padY;
-
-          ctx.shadowColor = 'rgba(0,0,0,0.2)';
-          ctx.shadowBlur = 4;
-          ctx.drawImage(artImg, drawX, drawY, drawW, drawH);
+          if (artworkBlendMultiply) {
+            ctx.globalCompositeOperation = 'multiply';
+          } else {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetY = 2;
+          }
+          ctx.drawImage(loadedArtImg, drawX, drawY, drawW, drawH);
           ctx.restore();
-
-          textCenterY = drawY + drawH + artVerticalSpacing + measuredTextHeight / 2;
         } catch (err) {
-          console.error('Erro ao desenhar arte:', err);
+          console.error('Erro ao carregar arte:', err);
         }
       }
 
       // =========================================================================
-      // 6. RENDERIZAÇÃO DO TEXTO COM EFEITO REALISTA
+      // 5. TEXTO PERSONALIZADO (CAIXA E POSIÇÃO INDEPENDENTES)
       // =========================================================================
-      if (customText.trim()) {
+      ctx.font = `${fontSize}px "${fontName}", serif`;
+      const hasText = customText.trim().length > 0;
+      const textToMeasure = hasText ? customText : 'Digite seu texto…';
+      const textMetrics = ctx.measureText(textToMeasure);
+      const measuredTextWidth = Math.ceil(textMetrics.width);
+      const measuredTextHeight = Math.ceil(fontSize * 1.15);
+
+      const isShortName = hasText && customText.trim().length <= 6;
+      const padX = isShortName ? 14 : 20;
+      const padY = 12;
+
+      const textBoxWidth = Math.max(measuredTextWidth + padX * 2, isShortName ? 70 : 110);
+      const textBoxHeight = measuredTextHeight + padY * 2;
+      const textBoxX = Math.round(textPosition.x - textBoxWidth / 2);
+      const textBoxY = Math.round(textPosition.y - textBoxHeight / 2);
+
+      const txtBounds = {
+        x: textBoxX,
+        y: textBoxY,
+        width: textBoxWidth,
+        height: textBoxHeight,
+      };
+      textBoundsRef.current = txtBounds;
+
+      if (showGuides && (hasText || !artworkPreviewUrl || activeTarget === 'text')) {
+        const txtLabel =
+          resizingTarget === 'text'
+            ? `⤡ TEXTO (${fontSize}px)`
+            : draggingTarget === 'text'
+              ? '✥ MOVENDO TEXTO'
+              : '✥ TEXTO (ARRASTE / CANTOS)';
+        drawSelectionBox(
+          txtBounds,
+          textPosition.x,
+          txtLabel,
+          'indigo',
+          activeTarget === 'text',
+          draggingTarget === 'text' || resizingTarget === 'text'
+        );
+      }
+
+      if (hasText) {
         ctx.save();
         ctx.font = `${fontSize}px "${fontName}", serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Sombra de profundidade e contraste
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.48)';
         ctx.shadowOffsetX = 1.5;
-        ctx.shadowOffsetY = 1.5;
+        ctx.shadowOffsetY = 1.8;
         ctx.shadowBlur = 3;
         ctx.fillStyle = textColor;
-        ctx.fillText(customText, textPosition.x, textCenterY);
+        ctx.fillText(customText, textPosition.x, textPosition.y);
 
-        // Realce de acabamento acetinado
         ctx.shadowColor = 'transparent';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.fillText(customText, textPosition.x - 0.5, textCenterY - 0.5);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.24)';
+        ctx.fillText(customText, textPosition.x - 0.5, textPosition.y - 0.6);
         ctx.restore();
-      } else {
-        // Texto de orientação
+      } else if (showGuides && (!artworkPreviewUrl || activeTarget === 'text')) {
         ctx.save();
         ctx.font = `italic 15px "${fontName}", serif`;
-        ctx.fillStyle = 'rgba(99, 102, 241, 0.5)';
+        ctx.fillStyle = 'rgba(99, 102, 241, 0.55)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Digite seu texto...', textPosition.x, textCenterY);
+        ctx.fillText('Digite seu texto…', textPosition.x, textPosition.y);
         ctx.restore();
       }
     } catch (err) {
       console.error('Erro na renderização do canvas:', err);
     }
-  }, [product, artworkPreviewUrl, customText, selectedFont, textColor, fontSize, textPosition, isDragging]);
+  }, [
+    product,
+    artworkPreviewUrl,
+    artworkSize,
+    artworkPosition,
+    artworkBlendMultiply,
+    customText,
+    selectedFont,
+    textColor,
+    fontSize,
+    textPosition,
+    activeTarget,
+    draggingTarget,
+    resizingTarget,
+    showGuides,
+  ]);
 
   useEffect(() => {
     // Aguarda carregar fontes
@@ -442,81 +621,156 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
   }, [renderCanvas]);
 
   // =========================================================================
-  // EVENTOS DE INTERAÇÃO COM O MOUSE / TOUCH PARA ARRASTAR O TEXTO
+  // EVENTOS DE INTERAÇÃO INDEPENDENTES (TEXTO E LOGO EM POSIÇÕES SEPARADAS)
   // =========================================================================
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const coords = getCanvasCoords(e);
-    const bounds = textBoundsRef.current;
-    const hitMargin = 20;
+  const isNearBoxCorner = (
+    coords: { x: number; y: number },
+    b: { x: number; y: number; width: number; height: number }
+  ) => {
+    const corners = [
+      { x: b.x, y: b.y },
+      { x: b.x + b.width, y: b.y },
+      { x: b.x, y: b.y + b.height },
+      { x: b.x + b.width, y: b.y + b.height },
+    ];
+    const radius = 16;
+    return corners.some((c) => Math.hypot(coords.x - c.x, coords.y - c.y) <= radius);
+  };
 
-    if (
-      coords.x >= bounds.x - hitMargin &&
-      coords.x <= bounds.x + bounds.width + hitMargin &&
-      coords.y >= bounds.y - 25 &&
-      coords.y <= bounds.y + bounds.height + hitMargin
-    ) {
-      setIsDragging(true);
-      setDragOffset({
-        x: coords.x - textPosition.x,
-        y: coords.y - textPosition.y,
-      });
+  const isInsideBox = (
+    coords: { x: number; y: number },
+    b: { x: number; y: number; width: number; height: number },
+    margin = 16
+  ) => {
+    return (
+      coords.x >= b.x - margin &&
+      coords.x <= b.x + b.width + margin &&
+      coords.y >= b.y - 22 &&
+      coords.y <= b.y + b.height + margin
+    );
+  };
+
+  const startPointerInteraction = (coords: { x: number; y: number }) => {
+    const txtB = textBoundsRef.current;
+    const artB = artworkBoundsRef.current;
+    const hasArt = Boolean(artworkPreviewUrl);
+
+    // 1. Verificar clique nos 4 cantos da LOGO (se houver logo)
+    if (showGuides && hasArt && isNearBoxCorner(coords, artB)) {
+      const dist = Math.max(20, Math.hypot(coords.x - artworkPosition.x, coords.y - artworkPosition.y));
+      setActiveTarget('artwork');
+      setResizingTarget('artwork');
+      setResizeStartRef({ dist, initialFontSize: fontSize, initialArtworkSize: artworkSize });
+      return;
     }
+
+    // 2. Verificar clique nos 4 cantos do TEXTO
+    if (showGuides && isNearBoxCorner(coords, txtB)) {
+      const dist = Math.max(20, Math.hypot(coords.x - textPosition.x, coords.y - textPosition.y));
+      setActiveTarget('text');
+      setResizingTarget('text');
+      setResizeStartRef({ dist, initialFontSize: fontSize, initialArtworkSize: artworkSize });
+      return;
+    }
+
+    // 3. Verificar clique para arrastar a LOGO ou o TEXTO (prioriza o que estiver mais próximo do clique)
+    const inArt = hasArt && isInsideBox(coords, artB);
+    const inTxt = isInsideBox(coords, txtB);
+
+    if (inArt && inTxt) {
+      const distArt = Math.hypot(coords.x - artworkPosition.x, coords.y - artworkPosition.y);
+      const distTxt = Math.hypot(coords.x - textPosition.x, coords.y - textPosition.y);
+      if (distArt <= distTxt) {
+        setActiveTarget('artwork');
+        setDraggingTarget('artwork');
+        setDragOffset({ x: coords.x - artworkPosition.x, y: coords.y - artworkPosition.y });
+      } else {
+        setActiveTarget('text');
+        setDraggingTarget('text');
+        setDragOffset({ x: coords.x - textPosition.x, y: coords.y - textPosition.y });
+      }
+      return;
+    }
+
+    if (inArt) {
+      setActiveTarget('artwork');
+      setDraggingTarget('artwork');
+      setDragOffset({ x: coords.x - artworkPosition.x, y: coords.y - artworkPosition.y });
+      return;
+    }
+
+    if (inTxt) {
+      setActiveTarget('text');
+      setDraggingTarget('text');
+      setDragOffset({ x: coords.x - textPosition.x, y: coords.y - textPosition.y });
+    }
+  };
+
+  const movePointerInteraction = (coords: { x: number; y: number }) => {
+    if (resizingTarget === 'artwork') {
+      const currentDist = Math.max(15, Math.hypot(coords.x - artworkPosition.x, coords.y - artworkPosition.y));
+      const scaleFactor = currentDist / Math.max(20, resizeStartRef.dist);
+      setArtworkSize(Math.round(Math.min(260, Math.max(30, resizeStartRef.initialArtworkSize * scaleFactor))));
+      return;
+    }
+
+    if (resizingTarget === 'text') {
+      const currentDist = Math.max(15, Math.hypot(coords.x - textPosition.x, coords.y - textPosition.y));
+      const scaleFactor = currentDist / Math.max(20, resizeStartRef.dist);
+      setFontSize(Math.round(Math.min(86, Math.max(14, resizeStartRef.initialFontSize * scaleFactor))));
+      return;
+    }
+
+    const txtB = textBoundsRef.current;
+    const artB = artworkBoundsRef.current;
+    const hasArt = Boolean(artworkPreviewUrl);
+
+    const nearCorner =
+      showGuides &&
+      (isNearBoxCorner(coords, txtB) || (hasArt && isNearBoxCorner(coords, artB)));
+    setIsHoveringCorner(nearCorner);
+
+    const isOver = isInsideBox(coords, txtB) || (hasArt && isInsideBox(coords, artB));
+    setIsHoveringBox(isOver);
+
+    if (draggingTarget === 'artwork') {
+      const newX = Math.round(Math.min(520, Math.max(80, coords.x - dragOffset.x)));
+      const newY = Math.round(Math.min(525, Math.max(95, coords.y - dragOffset.y)));
+      setArtworkPosition({ x: newX, y: newY });
+      return;
+    }
+
+    if (draggingTarget === 'text') {
+      const newX = Math.round(Math.min(520, Math.max(80, coords.x - dragOffset.x)));
+      const newY = Math.round(Math.min(525, Math.max(95, coords.y - dragOffset.y)));
+      setTextPosition({ x: newX, y: newY });
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    startPointerInteraction(getCanvasCoords(e));
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const coords = getCanvasCoords(e);
-    const bounds = textBoundsRef.current;
-    const hitMargin = 20;
-
-    const isOver =
-      coords.x >= bounds.x - hitMargin &&
-      coords.x <= bounds.x + bounds.width + hitMargin &&
-      coords.y >= bounds.y - 25 &&
-      coords.y <= bounds.y + bounds.height + hitMargin;
-
-    setIsHoveringBox(isOver);
-
-    if (!isDragging) return;
-
-    // Mantém a escrita dentro da área visível da bolsa (margens de segurança)
-    const newX = Math.round(Math.min(510, Math.max(90, coords.x - dragOffset.x)));
-    const newY = Math.round(Math.min(520, Math.max(120, coords.y - dragOffset.y)));
-    setTextPosition({ x: newX, y: newY });
+    movePointerInteraction(getCanvasCoords(e));
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    setDraggingTarget(null);
+    setResizingTarget(null);
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    const coords = getCanvasCoords(e);
-    const bounds = textBoundsRef.current;
-    const hitMargin = 25;
-
-    if (
-      coords.x >= bounds.x - hitMargin &&
-      coords.x <= bounds.x + bounds.width + hitMargin &&
-      coords.y >= bounds.y - 30 &&
-      coords.y <= bounds.y + bounds.height + hitMargin
-    ) {
-      setIsDragging(true);
-      setDragOffset({
-        x: coords.x - textPosition.x,
-        y: coords.y - textPosition.y,
-      });
-    }
+    startPointerInteraction(getCanvasCoords(e));
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDragging) return;
-    const coords = getCanvasCoords(e);
-    const newX = Math.round(Math.min(510, Math.max(90, coords.x - dragOffset.x)));
-    const newY = Math.round(Math.min(520, Math.max(120, coords.y - dragOffset.y)));
-    setTextPosition({ x: newX, y: newY });
+    movePointerInteraction(getCanvasCoords(e));
   };
 
   const handleTouchEnd = () => {
-    setIsDragging(false);
+    setDraggingTarget(null);
+    setResizingTarget(null);
   };
 
   const handleFinalize = () => {
@@ -527,7 +781,13 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
     // Garante que a sacola lateral esteja fechada para exibir apenas o feedback de sucesso
     closeCart();
 
-    const snapshot = canvasRef.current?.toDataURL('image/png') || product.base_mockup_url;
+    let snapshot = product.base_mockup_url;
+    try {
+      // Gera snapshot compacto JPEG 0.85 para não exceder a cota do localStorage junto com a logo PNG
+      snapshot = canvasRef.current?.toDataURL('image/jpeg', 0.85) || product.base_mockup_url;
+    } catch {
+      snapshot = product.base_mockup_url;
+    }
     const numericUnitPrice = parseFloat(String(unitPrice).replace(',', '.')) || product.base_price;
 
     addItem(
@@ -545,9 +805,15 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
         customization: {
           customText: customText.trim() || undefined,
           fontName: selectedFont,
+          fontSize: fontSize,
           textColor: textColor,
           textColorName: THREAD_COLORS.find((c) => c.hex === textColor)?.name || textColor,
+          textPosition: textPosition,
           artworkPreviewUrl: artworkPreviewUrl || undefined,
+          artworkName: artworkFile?.name || (artworkPreviewUrl ? 'logo-personalizada.png' : undefined),
+          artworkSize: artworkPreviewUrl ? artworkSize : undefined,
+          artworkPosition: artworkPreviewUrl ? artworkPosition : undefined,
+          artworkBlendMultiply: artworkPreviewUrl ? artworkBlendMultiply : undefined,
           previewSnapshotUrl: snapshot,
         },
       },
@@ -592,47 +858,72 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
         <div className="lg:col-span-6 xl:col-span-6">
           <div className="lg:sticky lg:top-[144px] z-20 flex flex-col items-center w-full max-w-[430px] xl:max-w-[470px] mx-auto">
             <div className="relative w-full aspect-square max-h-[calc(100vh-210px)] overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-inner group select-none">
-            <canvas
-              ref={canvasRef}
-              className={`h-full w-full object-contain block transition-colors ${
-                isDragging ? 'cursor-grabbing' : isHoveringBox ? 'cursor-grab' : 'cursor-default'
-              }`}
-              width={600}
-              height={600}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            />
+              <canvas
+                ref={canvasRef}
+                className={`h-full w-full object-contain block transition-colors ${isResizingCorner || isHoveringCorner
+                    ? 'cursor-nwse-resize'
+                    : isDragging
+                      ? 'cursor-grabbing'
+                      : isHoveringBox
+                        ? 'cursor-grab'
+                        : 'cursor-default'
+                  }`}
+                width={600}
+                height={600}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              />
 
-            {/* Dica Flutuante de Arrastar e Posicionar */}
-            <div className="absolute bottom-3.5 left-3.5 flex items-center gap-2 rounded-full bg-black/85 backdrop-blur-md px-3.5 py-1.5 text-[11px] font-bold text-white shadow-lg pointer-events-none">
-              <span className={`h-2 w-2 rounded-full ${isDragging ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
-              <span>
-                {isDragging ? '✥ Solte para fixar nesta posição' : '✥ Clique e arraste o texto para posicionar na bolsa'}
-              </span>
-            </div>
+              {/* Botão para alternar entre Modo Edição (com guias) e Modo Realista */}
+              <button
+                type="button"
+                onClick={() => setShowGuides((g) => !g)}
+                className={`absolute top-3.5 left-3.5 rounded-full px-3 py-1 text-[11px] font-bold shadow-sm border transition-colors ${showGuides
+                    ? 'bg-white/90 text-slate-800 border-slate-200 hover:bg-white'
+                    : 'bg-emerald-600 text-white border-emerald-700'
+                  }`}
+                title="Ocultar ou mostrar linhas tracejadas para ver o resultado realista"
+              >
+                {showGuides ? '👁️ Ver Resultado Realista' : '✏️ Mostrar Guias de Ajuste'}
+              </button>
 
-            {/* Indicador da Fonte Atual */}
-            <div className="absolute top-3.5 right-3.5 rounded-full bg-white/90 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-slate-800 shadow-sm border border-slate-200 pointer-events-none">
-              Fonte: <strong className="text-indigo-600">{selectedFont}</strong>
-            </div>
-
-            {/* Coordenadas em tempo real ao arrastar */}
-            {isDragging && (
-              <div className="absolute top-3.5 left-3.5 rounded-full bg-indigo-600 text-white px-3 py-1 text-[10px] font-extrabold shadow-md pointer-events-none">
-                Posição: X {textPosition.x} | Y {textPosition.y}
+              {/* Dica Flutuante de Arrastar e Redimensionar */}
+              <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center justify-center gap-2 rounded-full bg-black/85 backdrop-blur-md px-3.5 py-1.5 text-[11px] font-bold text-white shadow-lg pointer-events-none">
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${isDragging || isResizingCorner ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'
+                    }`}
+                />
+                <span className="truncate">
+                  {isResizingCorner
+                    ? `⤡ Redimensionando: Texto ${fontSize}px${artworkPreviewUrl ? ` | Imagem ${artworkSize}px` : ''}`
+                    : isDragging
+                      ? '✥ Solte para fixar nesta posição'
+                      : '✥ Arraste o centro para mover ou puxe os 4 cantos para aumentar/diminuir'}
+                </span>
               </div>
-            )}
-          </div>
 
-          <p className="mt-3 text-center text-xs text-slate-500">
-            💡 <strong>Dica:</strong> Você pode clicar diretamente no texto ou na área tracejada da bolsa para arrastar e soltar onde preferir (no centro, nos bolsos ou abas).
-          </p>
+              {/* Indicador da Fonte Atual */}
+              <div className="absolute top-3.5 right-3.5 rounded-full bg-white/90 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-slate-800 shadow-sm border border-slate-200 pointer-events-none">
+                Fonte: <strong className="text-indigo-600">{selectedFont}</strong>
+              </div>
+
+              {/* Coordenadas em tempo real ao arrastar */}
+              {isDragging && (
+                <div className="absolute top-3.5 left-3.5 rounded-full bg-indigo-600 text-white px-3 py-1 text-[10px] font-extrabold shadow-md pointer-events-none">
+                  Posição: X {textPosition.x} | Y {textPosition.y}
+                </div>
+              )}
+            </div>
+
+            <p className="mt-3 text-center text-xs text-slate-500">
+              💡 <strong>Dica:</strong> Você pode clicar diretamente no texto ou na área tracejada da bolsa para arrastar e soltar onde preferir (no centro, nos bolsos ou abas).
+            </p>
+          </div>
         </div>
-      </div>
 
         {/* ======================================================== */}
         {/* COLUNA DIREITA: CONTROLES DE PERSONALIZAÇÃO */}
@@ -724,55 +1015,50 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
               <button
                 type="button"
                 onClick={() => setFontCategoryFilter('all')}
-                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${
-                  fontCategoryFilter === 'all'
+                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${fontCategoryFilter === 'all'
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Todas
               </button>
               <button
                 type="button"
                 onClick={() => setFontCategoryFilter('luxo')}
-                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${
-                  fontCategoryFilter === 'luxo'
+                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${fontCategoryFilter === 'luxo'
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Luxo
               </button>
               <button
                 type="button"
                 onClick={() => setFontCategoryFilter('cursiva')}
-                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${
-                  fontCategoryFilter === 'cursiva'
+                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${fontCategoryFilter === 'cursiva'
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Cursiva
               </button>
               <button
                 type="button"
                 onClick={() => setFontCategoryFilter('moderna')}
-                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${
-                  fontCategoryFilter === 'moderna'
+                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${fontCategoryFilter === 'moderna'
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Moderna
               </button>
               <button
                 type="button"
                 onClick={() => setFontCategoryFilter('bold')}
-                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${
-                  fontCategoryFilter === 'bold'
+                className={`flex-1 rounded-lg py-1.5 transition-all text-center ${fontCategoryFilter === 'bold'
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 Esportiva
               </button>
@@ -789,11 +1075,10 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                     key={font.id}
                     type="button"
                     onClick={() => setSelectedFont(font.id)}
-                    className={`relative flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${
-                      isSelected
+                    className={`relative flex flex-col justify-between rounded-xl border p-3 text-left transition-all ${isSelected
                         ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-600 shadow-sm'
                         : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between w-full">
                       <span className="text-[11px] font-bold text-slate-700">
@@ -839,11 +1124,10 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                     key={color.name}
                     type="button"
                     onClick={() => setTextColor(color.hex)}
-                    className={`group relative flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
-                      isSelected
+                    className={`group relative flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${isSelected
                         ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-600 shadow-sm text-slate-900'
                         : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
-                    }`}
+                      }`}
                   >
                     <span
                       className="h-4 w-4 rounded-full border shadow-inner"
@@ -857,35 +1141,70 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
           </div>
 
           {/* ======================================================== */}
-          {/* 4. AJUSTES DE TAMANHO E POSIÇÃO DA PERSONALIZAÇÃO */}
+          {/* 4. AJUSTES DE TAMANHO (TEXTO E IMAGEM) E POSIÇÃO */}
           {/* ======================================================== */}
           <div className="space-y-4 pt-1">
-            {/* Tamanho da Fonte */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
+            {/* 4A. Tamanho do Texto (Reduzir ou Aumentar Livremente) */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-900">
-                  4. Tamanho da Personalização
+                  4. Tamanho do Texto
                 </label>
-                <span className="text-[11px] font-bold text-slate-500">
+                <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-black text-indigo-700 border border-indigo-200 tabular-nums">
                   {fontSize}px
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
+
+              {/* Barra Deslizante + Botões - e + */}
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setFontSize((s) => Math.max(14, s - 2))}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-black text-slate-700 hover:bg-slate-100 active:scale-95 transition-transform"
+                  title="Reduzir tamanho do texto"
+                  aria-label="Reduzir tamanho do texto"
+                >
+                  −
+                </button>
+                <input
+                  type="range"
+                  min={14}
+                  max={86}
+                  step={1}
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  className="w-full accent-indigo-600 cursor-pointer"
+                  aria-label="Ajustar tamanho do texto"
+                />
+                <button
+                  type="button"
+                  onClick={() => setFontSize((s) => Math.min(86, s + 2))}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-sm font-black text-slate-700 hover:bg-slate-100 active:scale-95 transition-transform"
+                  title="Aumentar tamanho do texto"
+                  aria-label="Aumentar tamanho do texto"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Atalhos Rápidos de Tamanho do Texto */}
+              <div className="grid grid-cols-6 gap-1.5">
                 {[
+                  { label: 'Mini', sub: '16px', size: 16 },
                   { label: 'P', sub: '24px', size: 24 },
                   { label: 'M', sub: '34px', size: 34 },
-                  { label: 'G', sub: '44px', size: 44 },
-                  { label: 'GG', sub: '54px', size: 54 },
+                  { label: 'G', sub: '46px', size: 46 },
+                  { label: 'GG', sub: '58px', size: 58 },
+                  { label: 'Max', sub: '72px', size: 72 },
                 ].map((item) => (
                   <button
                     key={item.label}
                     type="button"
                     onClick={() => setFontSize(item.size)}
-                    className={`flex-1 rounded-xl py-2 text-xs font-bold transition-all ${
-                      fontSize === item.size
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
+                    className={`rounded-xl py-1.5 text-xs font-bold transition-colors ${fontSize === item.size
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
                   >
                     <span>{item.label}</span>
                     <span className="block text-[9px] opacity-70 font-normal">{item.sub}</span>
@@ -894,40 +1213,136 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
               </div>
             </div>
 
-            {/* Posições Rápidas na Bolsa */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-900">
-                  Posição na Bolsa
+            {/* 4B. Tamanho da Imagem / Logo (aparece sempre ou destacado quando há imagem) */}
+            <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-indigo-950">
+                  Tamanho da Imagem / Logotipo
                 </label>
-                <span className="text-[11px] font-bold text-indigo-600">
-                  Ou arraste no visor
+                <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-black text-indigo-700 border border-indigo-200 tabular-nums">
+                  {artworkSize}px
                 </span>
               </div>
 
-              {/* Botões de atalhos rápidos de locais na bolsa */}
+              {/* Barra Deslizante + Botões - e + */}
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setArtworkSize((s) => Math.max(30, s - 10))}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-indigo-200 bg-white text-sm font-black text-indigo-900 hover:bg-indigo-100 active:scale-95 transition-transform"
+                  title="Reduzir tamanho da imagem"
+                  aria-label="Reduzir tamanho da imagem"
+                >
+                  −
+                </button>
+                <input
+                  type="range"
+                  min={30}
+                  max={260}
+                  step={2}
+                  value={artworkSize}
+                  onChange={(e) => setArtworkSize(Number(e.target.value))}
+                  className="w-full accent-indigo-600 cursor-pointer"
+                  aria-label="Ajustar tamanho da imagem"
+                />
+                <button
+                  type="button"
+                  onClick={() => setArtworkSize((s) => Math.min(260, s + 10))}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-indigo-200 bg-white text-sm font-black text-indigo-900 hover:bg-indigo-100 active:scale-95 transition-transform"
+                  title="Aumentar tamanho da imagem"
+                  aria-label="Aumentar tamanho da imagem"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Atalhos Rápidos de Tamanho da Imagem */}
+              <div className="grid grid-cols-6 gap-1.5">
+                {[
+                  { label: 'Mini', sub: '45px', size: 45 },
+                  { label: 'P', sub: '75px', size: 75 },
+                  { label: 'M', sub: '110px', size: 110 },
+                  { label: 'G', sub: '150px', size: 150 },
+                  { label: 'GG', sub: '190px', size: 190 },
+                  { label: 'Max', sub: '240px', size: 240 },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => setArtworkSize(item.size)}
+                    className={`rounded-xl py-1.5 text-xs font-bold transition-colors ${artworkSize === item.size
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white border border-indigo-100 text-slate-700 hover:bg-indigo-50'
+                      }`}
+                  >
+                    <span>{item.label}</span>
+                    <span className="block text-[9px] opacity-75 font-normal">{item.sub}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Posições Rápidas Independentes na Bolsa (Texto vs Logo Separados) */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                  Posição na Bolsa (Independentes)
+                </label>
+                <span className="text-[11px] font-bold text-indigo-600">
+                  Arraste cada caixa ou escolha abaixo
+                </span>
+              </div>
+
+              {/* Abas para escolher quem você quer mover: TEXTO ou LOGO */}
+              <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTarget('text')}
+                  className={`rounded-lg py-2 px-3 text-xs font-extrabold transition-colors flex items-center justify-center gap-1.5 ${activeTarget === 'text'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  <span>🔤 Posição do Texto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTarget('artwork')}
+                  className={`rounded-lg py-2 px-3 text-xs font-extrabold transition-colors flex items-center justify-center gap-1.5 ${activeTarget === 'artwork'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                  <span>🖼️ Posição da Logo</span>
+                </button>
+              </div>
+
+              {/* Botões de atalhos rápidos de locais na bolsa para o elemento selecionado */}
               <div className="grid grid-cols-3 gap-1.5">
                 {[
                   { label: 'Centro', pos: { x: 300, y: 340 } },
-                  { label: 'Bolso Esquerdo', pos: { x: 215, y: 350 } },
-                  { label: 'Bolso Direito', pos: { x: 385, y: 350 } },
-                  { label: 'Superior', pos: { x: 300, y: 245 } },
-                  { label: 'Inferior', pos: { x: 300, y: 430 } },
-                  { label: 'Lateral', pos: { x: 185, y: 380 } },
+                  { label: 'Lado Esquerdo', pos: { x: 210, y: 345 } },
+                  { label: 'Lado Direito', pos: { x: 390, y: 345 } },
+                  { label: 'Superior', pos: { x: 300, y: 235 } },
+                  { label: 'Inferior', pos: { x: 300, y: 435 } },
+                  { label: 'Canto Inferior Esq.', pos: { x: 205, y: 425 } },
                 ].map((preset) => {
+                  const currentPos = activeTarget === 'artwork' ? artworkPosition : textPosition;
+                  const setTargetPos = activeTarget === 'artwork' ? setArtworkPosition : setTextPosition;
                   const isCurrent =
-                    Math.abs(textPosition.x - preset.pos.x) < 18 &&
-                    Math.abs(textPosition.y - preset.pos.y) < 18;
+                    Math.abs(currentPos.x - preset.pos.x) < 18 &&
+                    Math.abs(currentPos.y - preset.pos.y) < 18;
                   return (
                     <button
                       key={preset.label}
                       type="button"
-                      onClick={() => setTextPosition(preset.pos)}
-                      className={`rounded-xl py-2 px-2 text-xs transition-all border ${
-                        isCurrent
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-900 font-bold shadow-xs ring-1 ring-indigo-600/30'
+                      onClick={() => setTargetPos(preset.pos)}
+                      className={`rounded-xl py-2 px-2 text-xs transition-colors border ${isCurrent
+                          ? activeTarget === 'artwork'
+                            ? 'border-amber-600 bg-amber-50 text-amber-950 font-bold shadow-xs ring-1 ring-amber-600/30'
+                            : 'border-indigo-600 bg-indigo-50 text-indigo-900 font-bold shadow-xs ring-1 ring-indigo-600/30'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium'
-                      }`}
+                        }`}
                     >
                       {preset.label}
                     </button>
@@ -935,16 +1350,19 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                 })}
               </div>
 
-              {/* Controles de Ajuste Fino (Nudge com setas direcionais) */}
-              <div className="mt-2.5 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 border border-slate-200">
+              {/* Controles de Ajuste Fino (Nudge com setas direcionais para o alvo ativo) */}
+              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 border border-slate-200">
                 <span className="text-[11px] font-bold text-slate-600">
-                  Ajuste Fino:
+                  Mover {activeTarget === 'artwork' ? 'Logo' : 'Texto'}:
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     title="Mover para esquerda"
-                    onClick={() => setTextPosition((p) => ({ ...p, x: Math.max(90, p.x - 14) }))}
+                    onClick={() => {
+                      const setter = activeTarget === 'artwork' ? setArtworkPosition : setTextPosition;
+                      setter((p) => ({ ...p, x: Math.max(80, p.x - 14) }));
+                    }}
                     className="h-8 w-8 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-center shadow-xs active:scale-95 transition-transform"
                   >
                     ◄
@@ -952,7 +1370,10 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                   <button
                     type="button"
                     title="Mover para cima"
-                    onClick={() => setTextPosition((p) => ({ ...p, y: Math.max(120, p.y - 14) }))}
+                    onClick={() => {
+                      const setter = activeTarget === 'artwork' ? setArtworkPosition : setTextPosition;
+                      setter((p) => ({ ...p, y: Math.max(95, p.y - 14) }));
+                    }}
                     className="h-8 w-8 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-center shadow-xs active:scale-95 transition-transform"
                   >
                     ▲
@@ -960,7 +1381,10 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                   <button
                     type="button"
                     title="Mover para baixo"
-                    onClick={() => setTextPosition((p) => ({ ...p, y: Math.min(520, p.y + 14) }))}
+                    onClick={() => {
+                      const setter = activeTarget === 'artwork' ? setArtworkPosition : setTextPosition;
+                      setter((p) => ({ ...p, y: Math.min(525, p.y + 14) }));
+                    }}
                     className="h-8 w-8 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-center shadow-xs active:scale-95 transition-transform"
                   >
                     ▼
@@ -968,15 +1392,24 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
                   <button
                     type="button"
                     title="Mover para direita"
-                    onClick={() => setTextPosition((p) => ({ ...p, x: Math.min(510, p.x + 14) }))}
+                    onClick={() => {
+                      const setter = activeTarget === 'artwork' ? setArtworkPosition : setTextPosition;
+                      setter((p) => ({ ...p, x: Math.min(520, p.x + 14) }));
+                    }}
                     className="h-8 w-8 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-center shadow-xs active:scale-95 transition-transform"
                   >
                     ►
                   </button>
                   <button
                     type="button"
-                    title="Centralizar texto"
-                    onClick={() => setTextPosition({ x: 300, y: 340 })}
+                    title="Resetar posição"
+                    onClick={() => {
+                      if (activeTarget === 'artwork') {
+                        setArtworkPosition({ x: 300, y: 245 });
+                      } else {
+                        setTextPosition({ x: 300, y: 365 });
+                      }
+                    }}
                     className="ml-1 rounded-lg bg-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-300 active:scale-95 transition-transform"
                   >
                     ↺ Resetar
@@ -1011,18 +1444,33 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
             </div>
 
             {artworkFile && (
-              <div className="mt-2 flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800">
-                <span className="truncate font-medium">Arquivo: {artworkFile.name}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setArtworkFile(null);
-                    setArtworkPreviewUrl(null);
-                  }}
-                  className="font-bold text-rose-600 hover:underline ml-2"
-                >
-                  Remover
-                </button>
+              <div className="mt-2.5 space-y-2 rounded-xl bg-emerald-50/90 p-3 border border-emerald-200 text-xs text-emerald-900">
+                <div className="flex items-center justify-between">
+                  <span className="truncate font-bold">✓ Arquivo: {artworkFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setArtworkFile(null);
+                      setArtworkPreviewUrl(null);
+                    }}
+                    className="font-bold text-rose-600 hover:underline ml-2 shrink-0"
+                  >
+                    Remover
+                  </button>
+                </div>
+
+                {/* Opção de realismo: mesclar fundo branco com o tecido da bolsa */}
+                <label className="flex items-center justify-between gap-2 pt-1.5 border-t border-emerald-200/70 cursor-pointer select-none">
+                  <span className="text-[11px] font-semibold text-emerald-950">
+                    ✨ Efeito Estampa Realista (remover fundo branco da imagem)
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={artworkBlendMultiply}
+                    onChange={(e) => setArtworkBlendMultiply(e.target.checked)}
+                    className="h-4 w-4 rounded border-emerald-400 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                </label>
               </div>
             )}
           </div>
@@ -1091,10 +1539,10 @@ export function ProductCustomizer({ product, onAddToCart }: ProductCustomizerPro
               <span>
                 {product.stock_quantity > 0
                   ? `Adicionar à Sacola (${customQuantity} un • R$ ${(
-                      parseFloat(unitPrice.replace(',', '.')) * customQuantity
-                    )
-                      .toFixed(2)
-                      .replace('.', ',')})`
+                    parseFloat(unitPrice.replace(',', '.')) * customQuantity
+                  )
+                    .toFixed(2)
+                    .replace('.', ',')})`
                   : 'Produto Sem Estoque no Momento'}
               </span>
               <span>&rarr;</span>

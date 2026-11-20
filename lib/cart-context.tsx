@@ -6,10 +6,16 @@ import { updateProductStock } from '@/lib/products-store';
 export interface CartCustomization {
   customText?: string;
   fontName?: string;
+  fontSize?: number;
   textColor?: string;
   textColorName?: string;
+  textPosition?: { x: number; y: number };
   fabricName?: string;
   artworkPreviewUrl?: string;
+  artworkName?: string;
+  artworkSize?: number;
+  artworkPosition?: { x: number; y: number };
+  artworkBlendMultiply?: boolean;
   previewSnapshotUrl?: string; // Canvas data URL / snapshot
 }
 
@@ -170,14 +176,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return copy;
         }
       } else {
-        // Se for customizado com o MESMO texto, fonte e cor, agrupa
+        // Se for customizado exatamente com os mesmos parâmetros, atualiza os dados de customização e soma a quantidade
         const existingIndex = prevItems.findIndex(
           (i) =>
             i.isCustomized &&
             i.productId === itemData.productId &&
             i.customization?.customText === itemData.customization?.customText &&
             i.customization?.fontName === itemData.customization?.fontName &&
-            i.customization?.textColor === itemData.customization?.textColor
+            i.customization?.fontSize === itemData.customization?.fontSize &&
+          i.customization?.textColor === itemData.customization?.textColor &&
+          i.customization?.artworkPreviewUrl === itemData.customization?.artworkPreviewUrl &&
+          i.customization?.artworkSize === itemData.customization?.artworkSize &&
+          i.customization?.textPosition?.x === itemData.customization?.textPosition?.x &&
+          i.customization?.textPosition?.y === itemData.customization?.textPosition?.y &&
+          i.customization?.artworkPosition?.x === itemData.customization?.artworkPosition?.x &&
+          i.customization?.artworkPosition?.y === itemData.customization?.artworkPosition?.y
         );
 
         if (existingIndex > -1) {
@@ -187,7 +200,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
             current.quantity + itemData.quantity
           );
           const copy = [...prevItems];
-          copy[existingIndex] = { ...current, quantity: newQty };
+          copy[existingIndex] = {
+            ...current,
+            quantity: newQty,
+            customization: itemData.customization,
+          };
           return copy;
         }
       }
@@ -287,16 +304,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const subtotalAfterCoupon = Math.max(0, subtotal - couponDiscountAmount);
 
-  // 5% de desconto extra no PIX (estilo e-commerce de alto padrão)
-  const pixDiscountAmount = useMemo(
-    () => subtotalAfterCoupon * 0.05,
-    [subtotalAfterCoupon]
-  );
+  // Mantém o valor exato do produto (sem abater 5% extra oculto sobre o preço já anunciado)
+  const pixDiscountAmount = 0;
 
-  const totalPix = useMemo(
-    () => Math.max(0, subtotalAfterCoupon - pixDiscountAmount),
-    [subtotalAfterCoupon, pixDiscountAmount]
-  );
+  const totalPix = subtotalAfterCoupon;
 
   const totalCard = subtotalAfterCoupon;
 

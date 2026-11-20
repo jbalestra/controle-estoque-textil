@@ -99,7 +99,7 @@ export async function createCheckoutPreferenceAction(
 
     for (const item of items) {
       // Buscar dados oficiais do produto (mapa pré-carregado com fallback para catálogo em memória)
-      let productTitle = 'Produto Personalizado';
+      let productTitle = item.product_title || 'Produto Personalizado';
       let productPrice = 0;
       let pictureUrl: string | undefined = undefined;
 
@@ -111,16 +111,20 @@ export async function createCheckoutPreferenceAction(
       }
 
       if (!productPrice) {
-        // Catálogo local padrão
+        // Catálogo local padrão: base_price JÁ É o preço real de venda (não aplicar desconto duas vezes!)
         const fallbackProd = INITIAL_PRODUCTS.find(
           (p) => p.id === item.product_id || p.slug === item.product_id
         );
         if (fallbackProd) {
-          productTitle = fallbackProd.title;
-          const discount = fallbackProd.discount_percentage || 0;
-          const base = Number(fallbackProd.base_price);
-          productPrice = discount > 0 ? base * (1 - discount / 100) : base;
+          productTitle = item.product_title || fallbackProd.title;
+          productPrice =
+            typeof item.unit_price === 'number' && item.unit_price > 0
+              ? item.unit_price
+              : Number(fallbackProd.base_price);
           pictureUrl = fallbackProd.base_mockup_url;
+        } else if (typeof item.unit_price === 'number' && item.unit_price > 0) {
+          // Produto recém-cadastrado ou atualizado pelo lojista no painel /lojista
+          productPrice = item.unit_price;
         }
       }
 

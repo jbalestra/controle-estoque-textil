@@ -40,6 +40,18 @@ h1, h2, h3, h4 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Remove as setas nativas (spin buttons) dos inputs numéricos */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Respeito estrito a prefers-reduced-motion (frontend-design & web-design-guidelines) */
 @media (prefers-reduced-motion: reduce) {
   *,

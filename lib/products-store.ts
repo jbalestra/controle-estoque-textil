@@ -91,7 +91,7 @@ export function updateProductDiscount(productId: string, discountPercentage: num
     }
 
     const discountedPrice = refOriginal * (1 - safeDiscount / 100);
-    const pixVal = discountedPrice * 0.95;
+    const formattedPrice = discountedPrice.toFixed(2).replace('.', ',');
 
     return {
       ...p,
@@ -100,7 +100,7 @@ export function updateProductDiscount(productId: string, discountPercentage: num
       discountPercent: `${safeDiscount}% off`,
       base_price: Number(discountedPrice.toFixed(2)),
       originalPrice: refOriginal.toFixed(2).replace('.', ','),
-      pixPrice: pixVal.toFixed(2).replace('.', ','),
+      pixPrice: formattedPrice,
       updated_at: new Date().toISOString(),
     };
   });

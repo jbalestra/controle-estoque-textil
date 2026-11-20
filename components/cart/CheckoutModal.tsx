@@ -134,19 +134,26 @@ export function CheckoutModal() {
           postal_code: cep,
           country: 'Brasil',
         },
-        items: items.map((it) => ({
-          product_id: it.productId,
-          quantity: it.quantity,
-          custom_text: it.customization?.customText || null,
-          font_id: it.customization?.fontName || null,
-          text_color: it.customization?.textColor || null,
-          snapshot_url:
-            it.customization?.previewSnapshotUrl?.startsWith('http')
-              ? it.customization.previewSnapshotUrl
-              : it.imageUrl?.startsWith('http')
-              ? it.imageUrl
-              : null,
-        })),
+        items: items.map((it) => {
+          // Aplica proporcionalmente eventual cupom de desconto ativo na sacola para bater 100% com o total exibido
+          const discountRatio = subtotal > 0 ? finalAmount / subtotal : 1;
+          const effectiveUnitPrice = Math.round(it.unitPrice * discountRatio * 100) / 100;
+          return {
+            product_id: it.productId,
+            product_title: it.productTitle,
+            unit_price: effectiveUnitPrice,
+            quantity: it.quantity,
+            custom_text: it.customization?.customText || null,
+            font_id: it.customization?.fontName || null,
+            text_color: it.customization?.textColor || null,
+            snapshot_url:
+              it.customization?.previewSnapshotUrl?.startsWith('http')
+                ? it.customization.previewSnapshotUrl
+                : it.imageUrl?.startsWith('http')
+                ? it.imageUrl
+                : null,
+          };
+        }),
       });
 
       if (preferenceResult.success && preferenceResult.initPoint) {

@@ -43,6 +43,8 @@ export const orderItemCustomizationInputSchema = z.object({
 
 export const orderItemInputSchema = z.object({
   product_id: z.string().min(1, 'ID de produto obrigatório').max(100),
+  product_title: z.string().max(160).optional().nullable(),
+  unit_price: z.number().positive().max(100000).optional().nullable(),
   quantity: z.number().int().positive('Quantidade mínima é 1').max(500, 'Quantidade máxima excedida'),
   fabric_id: z.string().min(1).max(100).optional().nullable(),
   artwork_url: z.string().url().max(2048).optional().nullable(),
